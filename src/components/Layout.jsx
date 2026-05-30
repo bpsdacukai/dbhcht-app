@@ -6,7 +6,6 @@ import { TAHUN_LIST } from '../lib/constants.js'
 export function Topbar() {
   const { profile } = useAuth()
   const { tahun, setTahun, jenis, setJenis, dark, toggleDark } = useApp()
-
   const logout = async () => { await supabase.auth.signOut() }
 
   return (
@@ -33,8 +32,12 @@ export function Topbar() {
       <button className="btn-ghost" style={{ color:'#ccc' }} onClick={toggleDark}>{dark?'☀️':'🌙'}</button>
       {profile && (
         <>
-          <span style={{ fontSize:'.78rem', color:'#aaa' }}>{profile.role==='sekretariat'?'👑':'👤'} {profile.nama?.split(' ').slice(0,2).join(' ')}</span>
-          <button className="btn btn-sm" style={{ background:'rgba(192,57,43,.25)', color:'#ffaaaa', border:'1px solid rgba(192,57,43,.4)' }} onClick={logout}>Logout</button>
+          <span style={{ fontSize:'.78rem', color:'#aaa' }}>
+            {profile.role==='sekretariat'?'👑':'👤'} {profile.nama?.split(' ').slice(0,2).join(' ')}
+          </span>
+          <button className="btn btn-sm"
+            style={{ background:'rgba(192,57,43,.25)', color:'#ffaaaa', border:'1px solid rgba(192,57,43,.4)' }}
+            onClick={logout}>Logout</button>
         </>
       )}
     </div>
@@ -46,15 +49,19 @@ export function Sidebar({ page, onNav }) {
   if (!profile) return null
   const isSkrt = profile.role === 'sekretariat'
 
+  // OPD mendapat menu Asistensi dan Rekonsiliasi hanya untuk VIEW
+  // (hak buat BA hanya sekretariat, OPD hanya lihat BA yang dikirim ke mereka)
   const menus = [
     { id:'dashboard',     icon:'🏠', label:'Dashboard' },
     { id:'pagu',          icon:'💰', label:'Pagu Alokasi',    sekOnly:true },
     { section:'PERENCANAAN' },
     { id:'rkp',           icon:'📄', label:'Penyusunan RKP' },
-    { id:'asistensi',     icon:'🤝', label:'Asistensi RKP',   sekOnly:true },
+    // OPD bisa lihat BA asistensi miliknya (view only), sekretariat bisa buat
+    { id:'asistensi',     icon:'🤝', label:'Asistensi RKP' },
     { section:'MONITORING' },
     { id:'realisasi',     icon:'📈', label:'Realisasi' },
-    { id:'rekonsiliasi',  icon:'🔄', label:'Rekonsiliasi',    sekOnly:true },
+    // OPD bisa lihat BA rekonsiliasi miliknya (view only), sekretariat bisa buat
+    { id:'rekonsiliasi',  icon:'🔄', label:'Rekonsiliasi' },
     { section:'LAPORAN' },
     { id:'laporan',       icon:'🖨️', label:'Laporan & Cetak' },
     { section:'REFERENSI' },
@@ -71,10 +78,20 @@ export function Sidebar({ page, onNav }) {
       </div>
       {menus.map((m,i) => {
         if (m.sekOnly && !isSkrt) return null
-        if (m.section) return <div key={i} className="nav-section">{m.section}</div>
+        if (m.section) {
+          // Sembunyikan section header jika tidak ada item yang tampil
+          return <div key={i} className="nav-section">{m.section}</div>
+        }
         return (
           <div key={m.id} className={`nav-item ${page===m.id?'active':''}`} onClick={()=>onNav(m.id)}>
             <span>{m.icon}</span> {m.label}
+            {/* Badge "Baru" untuk OPD di Asistensi/Rekonsiliasi supaya tahu ada notifikasi */}
+            {!isSkrt && (m.id==='asistensi'||m.id==='rekonsiliasi') && (
+              <span style={{
+                marginLeft:'auto', fontSize:'.65rem', background:'#dbeafe',
+                color:'#1e40af', padding:'1px 5px', borderRadius:10, fontWeight:600
+              }}>Lihat</span>
+            )}
           </div>
         )
       })}

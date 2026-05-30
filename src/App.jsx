@@ -8,7 +8,8 @@ import Dashboard from './pages/Dashboard.jsx'
 import RKP from './pages/RKP.jsx'
 import Realisasi from './pages/Realisasi.jsx'
 import Laporan from './pages/Laporan.jsx'
-import { Asistensi, Rekonsiliasi, Pagu, ManajemenOPD, Regulasi } from './pages/OtherPages.jsx'
+import { Asistensi, Rekonsiliasi } from './pages/OtherPages.jsx'
+import { Pagu, ManajemenOPD, Regulasi } from './pages/OtherPagesExtra.jsx'
 
 export default function App() {
   const { user, profile, loading } = useAuth()
