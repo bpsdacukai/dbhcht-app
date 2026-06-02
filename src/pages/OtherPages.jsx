@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, SEMUA_BIDANG, PROGRAM_BY_BIDANG, fmtRp, maxBop, today } from '../lib/constants.js'
 import { Modal, EmptyRow, DelBtn, PageHeader } from '../components/UI.jsx'
 import { tindakLanjutAsistensi, tindakLanjutRekonsiliasi } from '../lib/ai.js'
-import { CetakAistensi, CetakRekonsiliasi } from './Laporan.jsx'
+import { CetakAistensi, CetakRekonsiliasi, buildAsistensiHtml, buildRekonsHtml, printDocumentInNewTab, DOC_CSS } from './Laporan.jsx'
 
 // ── CSS untuk cetak dokumen BA (hanya area dokumen) ────────────
 const PRINT_DOC_CSS = `
@@ -22,9 +22,17 @@ function injectPrintDocCss() {
 
 // ── Komponen Pratinjau BA (fullscreen overlay untuk cetak) ─────
 function BAPreview({ type, data, kabupaten, onClose }) {
-  useEffect(() => { injectPrintDocCss() }, [])
+  const KOTA_BA = kabupaten || 'Kota Batu'
 
-  const doPrint = () => { window.print() }
+  function doPrint() {
+    const docHtml = type === 'asistensi'
+      ? buildAsistensiHtml(data, KOTA_BA)
+      : buildRekonsHtml(data, KOTA_BA)
+    const title = type === 'asistensi'
+      ? `Hasil Asistensi — ${data.opd}`
+      : `Hasil Rekonsiliasi — ${data.opd}`
+    printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + docHtml, title)
+  }
 
   return (
     <>
@@ -33,8 +41,8 @@ function BAPreview({ type, data, kabupaten, onClose }) {
         position:'fixed', inset:0, background:'rgba(0,0,0,.7)',
         zIndex:400, display:'flex', flexDirection:'column',
       }}>
-        {/* Toolbar — hanya tampil di browser, hilang saat cetak */}
-        <div id="ba-toolbar" style={{
+        {/* Toolbar */}
+        <div style={{
           background:'#1a3a1c', color:'#fff', padding:'10px 16px',
           display:'flex', alignItems:'center', gap:'1rem', flexShrink:0,
         }}>
@@ -45,7 +53,7 @@ function BAPreview({ type, data, kabupaten, onClose }) {
           <button
             onClick={doPrint}
             style={{ background:'#52b788', color:'#fff', border:'none', padding:'6px 16px', borderRadius:5, cursor:'pointer', fontWeight:600 }}>
-            🖨️ Cetak
+            🖨️ Cetak (Tab Baru)
           </button>
           <button
             onClick={onClose}
@@ -53,12 +61,12 @@ function BAPreview({ type, data, kabupaten, onClose }) {
             ✕ Tutup
           </button>
         </div>
-        {/* Dokumen */}
+        {/* Dokumen preview */}
         <div style={{ flex:1, overflow:'auto', background:'#f0f0f0', padding:'1rem' }}>
-          <div id="ba-print-area" style={{ boxShadow:'0 2px 20px rgba(0,0,0,.25)' }}>
+          <div style={{ background:'#fff', boxShadow:'0 2px 20px rgba(0,0,0,.25)', maxWidth:820, margin:'0 auto' }}>
             {type==='asistensi'
-              ? <CetakAistensi data={data} kabupaten={kabupaten} />
-              : <CetakRekonsiliasi data={data} kabupaten={kabupaten} />
+              ? <CetakAistensi data={data} kabupaten={KOTA_BA} />
+              : <CetakRekonsiliasi data={data} kabupaten={KOTA_BA} />
             }
           </div>
         </div>
