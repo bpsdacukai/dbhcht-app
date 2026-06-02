@@ -282,7 +282,7 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
               </tr>
             </tbody>
           </table>
-        </div>
+        </>
       )}
 
       {/* B. PELAKSANA — kolom NIP */}
