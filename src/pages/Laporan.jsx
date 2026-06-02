@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -532,7 +531,7 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
 //  Menghasilkan HTML murni tanpa React, reliable di semua browser
 // ══════════════════════════════════════════════════════════════
 
-const DOC_CSS = `
+export const DOC_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
   table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; }
@@ -596,7 +595,7 @@ function buildTandaTanganH(ps, po, kota) {
   </div>`
 }
 
-function buildAsistensiHtml(data, kota) {
+export function buildAsistensiHtml(data, kota) {
   const tahun = getYearH(data.tanggal)
   const nomorDoc = fmtNomorAsistH(data.nomor_ba, data.tanggal)
   const ps = data.peserta_sekretariat||[]
@@ -696,7 +695,7 @@ function buildAsistensiHtml(data, kota) {
   </div>`
 }
 
-function buildRekonsHtml(data, kota) {
+export function buildRekonsHtml(data, kota) {
   const tahun = getYearH(data.tanggal)
   const nomorDoc = fmtNomorRekonH(data.nomor_ba, data.tanggal)
   const ps = data.peserta_sekretariat||[]
@@ -1118,7 +1117,7 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
 // Pendekatan paling reliable: render ke HTML string, buka tab baru, print dari sana
 
 // Fungsi untuk mengkonversi React element ke HTML string dan print di tab baru
-function printDocumentInNewTab(htmlContent, title) {
+export function printDocumentInNewTab(htmlContent, title) {
   const printWin = window.open('', '_blank', 'width=900,height=700')
   if (!printWin) {
     alert('Popup diblokir browser. Izinkan popup untuk simdbhcht.vercel.app agar bisa mencetak.')
@@ -1204,16 +1203,6 @@ function PrintPortal({ docHtml, onClose, title, children }) {
   )
 }
 
-// Konversi React component ke HTML string menggunakan DOM
-function renderToHtmlString(element) {
-  const container = document.createElement('div')
-  // Import renderToStaticMarkup tidak tersedia di browser, gunakan DOM render sementara
-  // Kita inject React root ke container, ambil innerHTML
-  const { createRoot } = window.__reactRoot || {}
-  // Fallback: gunakan innerHTML dari container yang sudah dirender di React overlay
-  return container.innerHTML
-}
-
 // Gabungkan realisasi — jika satu OPD punya data di beberapa triwulan,
 // jumlahkan realisasi_keu dan rata-rata realisasi_fisik
 function mergeRealisasi(rows) {
@@ -1234,8 +1223,6 @@ function mergeRealisasi(rows) {
 }
 
 export default function Laporan() {
-  useEffect(() => { ensurePrintCss() }, [])
-
   const { tahun, jenis } = useApp()
   const { profile, isSekretariat } = useAuth()
   const [menu,      setMenu]     = useState('asistensi')
