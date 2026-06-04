@@ -535,8 +535,8 @@ export const DOC_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
   table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; }
-  th { border: 1px solid #000; padding: 3px 6px; background: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; }
-  td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; }
+  th { border: 1px solid #000; padding: 3px 6px; background: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; word-wrap: break-word; }
+  td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; word-wrap: break-word; }
   .center { text-align: center; }
   .right { text-align: right; }
   .bold { font-weight: bold; }
@@ -544,12 +544,36 @@ export const DOC_CSS = `
   .judul div { font-weight: bold; font-size: 13px; }
   p { margin-bottom: 10px; text-align: justify; }
   .section-title { font-weight: bold; margin: 8px 0 4px; }
+
+  /* ── Portrait (BA Asistensi, BA Rekonsiliasi, Rekap) ── */
   .wrap { padding: 24px 28px; max-width: 794px; margin: 0 auto; }
+
+  /* ── Landscape (RKP, Realisasi) ── */
+  .wrap-wide { padding: 20px 24px; max-width: 1100px; margin: 0 auto; }
+  .wrap-wide table { font-size: 9px; }
+  .wrap-wide th, .wrap-wide td { padding: 2px 4px; }
+
   .tanda-tangan { margin-top: 20px; }
   .mengetahui { text-align: center; margin-top: 16px; }
   .mengetahui .ttd-line { margin-top: 50px; }
-  @page { size: A4; margin: 15mm 12mm; }
-  @media print { .no-print { display: none !important; } }
+
+  /* ── Default: Portrait ── */
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+
+  /* ── Landscape override saat body punya class landscape ── */
+  body.landscape { font-size: 10px; }
+  @media print {
+    .no-print { display: none !important; }
+    body { margin: 0; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+  }
+  body.landscape @page { size: A4 landscape; margin: 10mm 12mm; }
+`
+
+/* DOC_CSS khusus landscape — @page harus di top-level, tidak bisa di-nest */
+export const DOC_CSS_LANDSCAPE = DOC_CSS + `
+  @page { size: A4 landscape; margin: 10mm 12mm; }
 `
 
 function fmtN(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n||0)) }
@@ -903,7 +927,7 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
   const totalAll = rows.reduce((s, r) => s + (r.pagu || 0) + (r.pagu_bop || 0), 0)
   return (
-    <div style={{ ...S.doc, maxWidth: 1050 }}>
+    <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>RENCANA KEGIATAN DAN PENGANGGARAN (RKP)</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
@@ -1008,7 +1032,7 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
   const totalPagu = rows.reduce((s, r) => s + (r.pagu || 0), 0)
   const totalReal = rows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
   return (
-    <div style={{ ...S.doc, maxWidth: 1100 }}>
+    <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>LAPORAN REALISASI PENGGUNAAN</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
@@ -1117,12 +1141,21 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
 // Pendekatan paling reliable: render ke HTML string, buka tab baru, print dari sana
 
 // Fungsi untuk mengkonversi React element ke HTML string dan print di tab baru
-export function printDocumentInNewTab(htmlContent, title) {
-  const printWin = window.open('', '_blank', 'width=900,height=700')
+export function printDocumentInNewTab(htmlContent, title, landscape = false) {
+  const winW = landscape ? 1200 : 900
+  const printWin = window.open('', '_blank', `width=${winW},height=700`)
   if (!printWin) {
     alert('Popup diblokir browser. Izinkan popup untuk simdbhcht.vercel.app agar bisa mencetak.')
     return
   }
+  const pageSize  = landscape ? 'A4 landscape' : 'A4 portrait'
+  const pageMargin = landscape ? '10mm 12mm' : '12mm 10mm'
+  const bodyMaxW  = landscape ? '1100px' : '794px'
+  const bodyPad   = landscape ? '20px 24px' : '24px 28px'
+  const baseFontSz = landscape ? '10px' : '11px'
+  const tblFontSz  = landscape ? '9px'  : '10px'
+  const cellPad    = landscape ? '2px 4px' : '3px 6px'
+
   printWin.document.write(`<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1131,11 +1164,25 @@ export function printDocumentInNewTab(htmlContent, title) {
   <title>${title}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; }
-    @page { size: A4; margin: 15mm 12mm; }
+    body { font-family: Arial, sans-serif; font-size: ${baseFontSz}; color: #000; background: #fff; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; font-size: ${tblFontSz}; margin-bottom: 8px; }
+    th { border: 1px solid #000; padding: ${cellPad}; background: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; word-wrap: break-word; }
+    td { border: 1px solid #000; padding: ${cellPad}; vertical-align: top; word-wrap: break-word; }
+    .center { text-align: center; } .right { text-align: right; } .bold { font-weight: bold; }
+    .judul { text-align: center; margin-bottom: 14px; line-height: 1.6; }
+    .judul div { font-weight: bold; font-size: 13px; }
+    p { margin-bottom: 10px; text-align: justify; }
+    .section-title { font-weight: bold; margin: 8px 0 4px; }
+    .wrap, .wrap-wide { padding: ${bodyPad}; max-width: ${bodyMaxW}; margin: 0 auto; }
+    .tanda-tangan { margin-top: 20px; }
+    .mengetahui { text-align: center; margin-top: 16px; }
+    .mengetahui .ttd-line { margin-top: 50px; }
+    @page { size: ${pageSize}; margin: ${pageMargin}; }
     @media print {
       .no-print { display: none !important; }
       body { margin: 0; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
     }
     .print-toolbar {
       background: #1a3a1c; color: #fff; padding: 10px 18px;
@@ -1145,20 +1192,20 @@ export function printDocumentInNewTab(htmlContent, title) {
     .print-toolbar span { font-weight: 600; font-size: 14px; flex: 1; }
     .btn-print { background: #52b788; color: #fff; border: none; padding: 8px 22px; border-radius: 5px; cursor: pointer; font-weight: 700; font-size: 14px; }
     .btn-close { background: transparent; color: #ccc; border: 1px solid #3a5a3c; padding: 8px 14px; border-radius: 5px; cursor: pointer; font-size: 13px; }
-    .doc-body { padding: 24px 28px; max-width: 794px; margin: 0 auto; }
+    .orientation-badge { background: rgba(255,255,255,.15); border-radius: 4px; padding: 3px 10px; font-size: 12px; }
   </style>
 </head>
 <body>
   <div class="print-toolbar no-print">
     <span>🖨️ ${title}</span>
+    <span class="orientation-badge">📄 ${landscape ? 'Landscape (A4)' : 'Portrait (A4)'}</span>
     <button class="btn-print" onclick="window.print()">🖨️ Cetak</button>
     <button class="btn-close" onclick="window.close()">✕ Tutup</button>
   </div>
-  <div class="doc-body">
+  <div>
     ${htmlContent}
   </div>
   <script>
-    // Auto-focus agar siap cetak
     window.focus()
   </script>
 </body>
@@ -1361,8 +1408,9 @@ export default function Laporan() {
       {/* Rekap Asistensi */}
       {menu === 'rekap_asis' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak Rekap</button>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title, false); }}>🖨️ Cetak Rekap</button>
+            <span className="chip">📄 Portrait A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapAisistensi rows={asisRows} tahun={tahun} kabupaten={KOTA} />
@@ -1416,8 +1464,9 @@ export default function Laporan() {
       {/* Rekap Rekonsiliasi */}
       {menu === 'rekap_rekon' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak Rekap</button>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title, false); }}>🖨️ Cetak Rekap</button>
+            <span className="chip">📄 Portrait A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapRekonsiliasi rows={rekonFiltered} tahun={tahun} triwulan={twFilter} kabupaten={KOTA} />
@@ -1428,10 +1477,11 @@ export default function Laporan() {
       {/* Cetak RKP */}
       {menu === 'rkp' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak RKP</button>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak RKP</button>
+            <span className="chip">🔄 Landscape A4</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
           </div>
         </div>
@@ -1440,10 +1490,11 @@ export default function Laporan() {
       {/* Realisasi Per Triwulan */}
       {menu === 'realisasi_tw' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak Laporan</button>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan</button>
+            <span className="chip">🔄 Landscape A4</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRealisasi rows={realTw} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
               kabupaten={KOTA} />
@@ -1455,10 +1506,10 @@ export default function Laporan() {
       {menu === 'realisasi_s1' && (
         <div className="print-section-wrapper">
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak Laporan Semester I</button>
-            <span className="chip">Triwulan I + II</span>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester I</button>
+            <span className="chip">🔄 Landscape A4</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} />
           </div>
         </div>
@@ -1468,10 +1519,10 @@ export default function Laporan() {
       {menu === 'realisasi_s2' && (
         <div className="print-section-wrapper">
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title); }}>🖨️ Cetak Laporan Semester II</button>
-            <span className="chip">Triwulan I + II + III + IV</span>
+            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester II</button>
+            <span className="chip">🔄 Landscape A4</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} />
           </div>
         </div>
