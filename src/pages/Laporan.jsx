@@ -1333,7 +1333,7 @@ export default function Laporan() {
   const [asisRows,  setAsis]     = useState([])
   const [rekonRows, setRekon]    = useState([])
   const [rkpRows,   setRkp]      = useState([])
-  const [rkpAllRows, setRkpAll]  = useState([])  // semua jenis, untuk lookup pagu_bop di CetakRealisasi
+  const [rkpAllRows, setRkpAll]  = useState([])  // RKP jenis aktif (semua OPD), untuk lookup pagu di CetakRealisasi
   const [realRows,  setReal]     = useState([])
   const [selBA,     setSelBA]    = useState(null)
   const [prevType,  setPrevType] = useState(null)
@@ -1349,8 +1349,9 @@ export default function Laporan() {
       (() => { let q = supabase.from('rekonsiliasi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('bidang_id'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
       (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
-      // Lookup pagu_bop: semua RKP tahun ini, semua jenis & semua OPD (tanpa filter)
-      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu,pagu_bop,created_by').eq('tahun', tahun),
+      // Lookup pagu_bop: semua RKP tahun ini, jenis yang sama, semua OPD
+      // PENTING: filter jenis agar kegiatan Koordinasi dari RKP Perubahan tidak muncul di laporan Murni
+      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu,pagu_bop,created_by').eq('tahun', tahun).eq('jenis', jenis),
     ])
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
     setRkpAll(ra || [])
@@ -1362,8 +1363,8 @@ export default function Laporan() {
   const realSem1 = mergeRealisasi(realRows.filter(r => ['I', 'II'].includes(r.triwulan)))
   // Semester II = Triwulan I + II + III + IV
   const realSem2 = mergeRealisasi(realRows)
-  // Per triwulan
-  const realTw   = twFilter ? realRows.filter(r => r.triwulan === twFilter) : mergeRealisasi(realRows)
+  // Per triwulan — selalu di-merge agar duplikat input digabung jadi 1 baris
+  const realTw   = twFilter ? mergeRealisasi(realRows.filter(r => r.triwulan === twFilter)) : mergeRealisasi(realRows)
 
   const MENUS = [
     { id: 'asistensi',    label: '🤝 BA Asistensi',        count: asisRows.length },
