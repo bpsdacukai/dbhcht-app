@@ -1293,6 +1293,7 @@ export default function Laporan() {
   const [asisRows,  setAsis]     = useState([])
   const [rekonRows, setRekon]    = useState([])
   const [rkpRows,   setRkp]      = useState([])
+  const [rkpAllRows, setRkpAll]  = useState([])  // semua jenis, untuk lookup pagu_bop di CetakRealisasi
   const [realRows,  setReal]     = useState([])
   const [selBA,     setSelBA]    = useState(null)
   const [prevType,  setPrevType] = useState(null)
@@ -1303,13 +1304,16 @@ export default function Laporan() {
   async function loadAll() {
     const uid    = profile?.id
     const isSkrt = isSekretariat
-    const [{ data: a }, { data: rk }, { data: rv }, { data: rl }] = await Promise.all([
+    const [{ data: a }, { data: rk }, { data: rv }, { data: rl }, { data: ra }] = await Promise.all([
       (() => { let q = supabase.from('asistensi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rekonsiliasi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('bidang_id'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
       (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
+      // Lookup pagu_bop: semua RKP tahun ini, semua jenis & semua OPD (tanpa filter)
+      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu_bop,created_by').eq('tahun', tahun),
     ])
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
+    setRkpAll(ra || [])
   }
 
   const rekonFiltered = twFilter ? rekonRows.filter(r => r.triwulan === twFilter) : rekonRows
@@ -1514,7 +1518,7 @@ export default function Laporan() {
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRealisasi rows={realTw} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
-              kabupaten={KOTA} rkpRows={rkpRows} />
+              kabupaten={KOTA} rkpRows={rkpAllRows} />
           </div>
         </div>
       )}
@@ -1527,7 +1531,7 @@ export default function Laporan() {
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} rkpRows={rkpRows} />
+            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} rkpRows={rkpAllRows} />
           </div>
         </div>
       )}
@@ -1540,7 +1544,7 @@ export default function Laporan() {
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} rkpRows={rkpRows} />
+            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} rkpRows={rkpAllRows} />
           </div>
         </div>
       )}
