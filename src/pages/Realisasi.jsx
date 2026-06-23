@@ -49,7 +49,17 @@ export default function Realisasi() {
     : twRows.filter(r => r.bidang_id === bidTab && !r.is_koordinasi)
 
   const sumKeu  = (arr) => arr.reduce((s,r)=>s+(r.realisasi_keu||0),0)
-  const sumPagu = (arr) => arr.reduce((s,r)=>s+(r.pagu||0),0)
+  // Pagu dihitung unik per program+kegiatan+sub_kegiatan+OPD karena 1 program hanya punya 1 pagu anggaran
+  const uniquePagu = (arr) => {
+    const seen = new Set()
+    return arr.reduce((s,r) => {
+      const key = `${r.program}|${r.kegiatan||''}|${r.sub_kegiatan||''}|${r.created_by||''}`
+      if (seen.has(key)) return s
+      seen.add(key)
+      return s + (r.pagu||0)
+    }, 0)
+  }
+  const sumPagu = uniquePagu
   const sem1    = sumKeu(rows.filter(r=>['I','II'].includes(r.triwulan)))
   const semAll  = sumKeu(rows)
   const totalPaguOpd = (paguOpd?.pagu_utama||0) + (paguOpd?.bop||0)
