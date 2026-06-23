@@ -1024,13 +1024,29 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
 // ══════════════════════════════════════════════════════════════
 //  LAPORAN REALISASI  (triwulan, semester I, semester II)
 // ══════════════════════════════════════════════════════════════
-export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
+export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpRows = [] }) {
+  // Buat lookup pagu_bop dari RKP berdasarkan key unik program+kegiatan+sub_kegiatan+bidang
+  const rkpBopMap = {}
+  for (const r of rkpRows) {
+    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
+    rkpBopMap[key] = (r.pagu_bop || 0)
+  }
+  // Helper: ambil pagu_bop dari RKP untuk satu baris realisasi
+  const getBop = (r) => {
+    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
+    return rkpBopMap[key] || 0
+  }
+  // Kolom (7) = pagu utama + pagu_bop (dari RKP)
+  const getPaguTotal  = (r) => (r.pagu || 0) + getBop(r)
+  // Kolom (9) = realisasi_keu + realisasi_bop
+  const getRealTotal  = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
+
   const koorRows   = rows.filter(r => r.is_koordinasi)
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
-  const totalPagu = rows.reduce((s, r) => s + (r.pagu || 0), 0)
-  const totalReal = rows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
+  const totalPagu = rows.reduce((s, r) => s + getPaguTotal(r), 0)
+  const totalReal = rows.reduce((s, r) => s + getRealTotal(r), 0)
   return (
     <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
@@ -1058,8 +1074,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
         <tbody>
           {BIDANG.map((b, bi) => {
             const bRows  = byBidang[b.id] || []
-            const bPagu  = bRows.reduce((s, r) => s + (r.pagu || 0), 0)
-            const bReal  = bRows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
+            const bPagu  = bRows.reduce((s, r) => s + getPaguTotal(r), 0)
+            const bReal  = bRows.reduce((s, r) => s + getRealTotal(r), 0)
             return [
               <tr key={'h-' + b.id} style={{ background: '#c6e0b4' }}>
                 <td style={{ ...S.td, ...S.bold, ...S.center }}>{String.fromCharCode(65 + bi)}.</td>
@@ -1073,9 +1089,9 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
                   <td style={S.td}>{r.kode_rekening || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
                   <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
+                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
                   <td style={S.td}>{r.keterangan || ''}</td>
                 </tr>
@@ -1106,9 +1122,9 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
                 <td style={S.td}>{r.kode_rekening || ''}</td>
                 <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
                 <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
                 <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
+                <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
                 <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
                 <td style={S.td}>{r.keterangan || ''}</td>
               </tr>
@@ -1251,15 +1267,16 @@ function PrintPortal({ docHtml, onClose, title, children }) {
 }
 
 // Gabungkan realisasi — jika satu OPD punya data di beberapa triwulan,
-// jumlahkan realisasi_keu dan rata-rata realisasi_fisik
+// jumlahkan realisasi_keu, realisasi_bop dan rata-rata realisasi_fisik
 function mergeRealisasi(rows) {
   const map = {}
   for (const r of rows) {
     const key = r.bidang_id + '|' + r.program + '|' + r.kegiatan + '|' + r.sub_kegiatan + '|' + (r.is_koordinasi ? '1' : '0')
     if (!map[key]) {
-      map[key] = { ...r, realisasi_keu: 0, realisasi_fisik: 0, _count: 0 }
+      map[key] = { ...r, realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0, _count: 0 }
     }
     map[key].realisasi_keu += (r.realisasi_keu || 0)
+    map[key].realisasi_bop += (r.realisasi_bop || 0)
     map[key].realisasi_fisik += (r.realisasi_fisik || 0)
     map[key]._count++
   }
@@ -1497,7 +1514,7 @@ export default function Laporan() {
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
             <CetakRealisasi rows={realTw} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
-              kabupaten={KOTA} />
+              kabupaten={KOTA} rkpRows={rkpRows} />
           </div>
         </div>
       )}
@@ -1510,7 +1527,7 @@ export default function Laporan() {
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} />
+            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} rkpRows={rkpRows} />
           </div>
         </div>
       )}
@@ -1523,7 +1540,7 @@ export default function Laporan() {
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} />
+            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} rkpRows={rkpRows} />
           </div>
         </div>
       )}
