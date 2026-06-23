@@ -1028,22 +1028,21 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
   // Buat lookup pagu (utama) dan pagu_bop dari RKP berdasarkan key unik
   // Pagu kegiatan = pagu RKP + BOP RKP (sesuai data hasil input Penyusunan RKP)
   const rkpMap = {}   // key -> { pagu, pagu_bop, ...fullRow }
+  // Key menyertakan created_by agar pagu tiap OPD tidak saling timpa
+  const makeRkpKey = (r) =>
+    (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
   for (const r of rkpRows) {
-    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    if (!rkpMap[key] || (r.pagu || 0) >= (rkpMap[key].pagu || 0)) {
-      rkpMap[key] = r
-    }
+    const key = makeRkpKey(r)
+    if (!rkpMap[key]) rkpMap[key] = r
   }
 
   // Gabungkan rows realisasi dengan baris RKP yang belum ada realisasinya
   // agar semua kegiatan dari RKP tampil (dengan realisasi 0 jika belum ada data)
-  const realKeySet = new Set(rows.map(r =>
-    (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-  ))
+  const makeRealKey = (r) =>
+    (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
+  const realKeySet = new Set(rows.map(r => makeRealKey(r)))
   const rkpOnlyRows = Object.values(rkpMap)
-    .filter(r => !realKeySet.has(
-      (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    ))
+    .filter(r => !realKeySet.has(makeRkpKey(r)))
     .map(r => ({
       ...r,
       realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0,
@@ -1054,20 +1053,17 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
   // allRows = realisasi yang ada + baris RKP yang belum ada realisasinya
   const allRows = [...rows, ...rkpOnlyRows]
 
-  // Helper: ambil pagu utama dari RKP
-  const getRkpPagu = (r) => {
-    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    return (rkpMap[key]?.pagu) ?? (r.pagu || 0)
-  }
+  // Helper: ambil pagu utama dari RKP (fallback ke field r.pagu jika tidak ada di rkpMap)
+  const getRkpPagu = (r) => (rkpMap[makeRkpKey(r)]?.pagu) ?? (r.pagu || 0)
   // Helper: ambil pagu_bop dari RKP
-  const getBop = (r) => {
-    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    return (rkpMap[key]?.pagu_bop) || 0
-  }
-  // Kolom (7) = pagu kegiatan dari RKP + pagu_bop RKP
-  const getPaguTotal  = (r) => getRkpPagu(r) + getBop(r)
+  const getBop     = (r) => (rkpMap[makeRkpKey(r)]?.pagu_bop) || 0
+  // Kolom (7a) = pagu kegiatan dari RKP  |  Kolom (7b) = BOP dari RKP
+  const getPaguReal  = (r) => getRkpPagu(r)
+  const getPaguBop   = (r) => getBop(r)
+  // Kolom (7) total = pagu + BOP
+  const getPaguTotal = (r) => getRkpPagu(r) + getBop(r)
   // Kolom (9) = realisasi_keu + realisasi_bop
-  const getRealTotal  = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
+  const getRealTotal = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
 
   const koorRows   = allRows.filter(r => r.is_koordinasi)
   const normalRows = allRows.filter(r => !r.is_koordinasi)
@@ -1090,12 +1086,13 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
             <th style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
             <th style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
             <th style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
-            <th style={{ ...S.th, width: 35 }}>(5)<br />Vol</th>
-            <th style={{ ...S.th, width: 35 }}>(6)<br />Sat</th>
+            <th style={{ ...S.th, width: 32 }}>(5)<br />Vol</th>
+            <th style={{ ...S.th, width: 32 }}>(6)<br />Sat</th>
             <th style={{ ...S.th, width: 82 }}>(7)<br />Pagu Kegiatan (Rp)</th>
-            <th style={{ ...S.th, width: 72 }}>(8)<br />Rencana Output</th>
+            <th style={{ ...S.th, width: 68 }}>BOP ≤10%<br />(Rp)</th>
+            <th style={{ ...S.th, width: 68 }}>(8)<br />Rencana Output</th>
             <th style={{ ...S.th, width: 82 }}>(9)<br />Realisasi Dana (Rp)</th>
-            <th style={{ ...S.th, width: 55 }}>(10)<br />Realisasi Fisik (%)</th>
+            <th style={{ ...S.th, width: 50 }}>(10)<br />Real. Fisik (%)</th>
             <th style={S.th}>Ket</th>
           </tr>
         </thead>
@@ -1117,7 +1114,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
                   <td style={S.td}>{r.kode_rekening || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguReal(r))}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguBop(r))}</td>
                   <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
                   <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
@@ -1125,11 +1123,12 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
                 </tr>
               )),
               bRows.length === 0 ? (
-                <tr key={'e-' + b.id}><td colSpan={11} style={{ ...S.td, ...S.center, color: '#999', fontStyle: 'italic' }}>—</td></tr>
+                <tr key={'e-' + b.id}><td colSpan={12} style={{ ...S.td, ...S.center, color: '#999', fontStyle: 'italic' }}>—</td></tr>
               ) : null,
               <tr key={'t-' + b.id} style={{ background: '#e2efda', fontWeight: 'bold' }}>
                 <td colSpan={6} style={{ ...S.td, ...S.right }}>Total {b.label}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(bPagu)}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
                 <td style={S.td} />
                 <td style={{ ...S.td, ...S.right }}>{fmt(bReal)}</td>
                 <td style={{ ...S.td, ...S.center }}>{bPagu > 0 ? ((bReal / bPagu) * 100).toFixed(1) : '0.0'}%</td>
@@ -1153,7 +1152,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
                   <td style={S.td}>{r.kode_rekening || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguReal(r))}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguBop(r))}</td>
                   <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
                   <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
@@ -1162,7 +1162,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
               )),
               <tr key="t-koor" style={{ background: '#fce4d6', fontWeight: 'bold' }}>
                 <td colSpan={6} style={{ ...S.td, ...S.right }}>Total Kegiatan Koordinasi Pengelolaan DBH CHT</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(kPagu)}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(koorRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(koorRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
                 <td style={S.td} />
                 <td style={{ ...S.td, ...S.right }}>{fmt(kReal)}</td>
                 <td style={{ ...S.td, ...S.center }}>{kPagu > 0 ? ((kReal / kPagu) * 100).toFixed(1) : '0.0'}%</td>
@@ -1172,7 +1173,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
           })()}
           <tr style={{ background: '#a9d18e', fontWeight: 'bold', fontSize: 10 }}>
             <td colSpan={6} style={{ ...S.td, ...S.right }}>TOTAL</td>
-            <td style={{ ...S.td, ...S.right }}>{fmt(totalPagu)}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(allRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(allRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
             <td style={S.td} />
             <td style={{ ...S.td, ...S.right }}>{fmt(totalReal)}</td>
             <td style={{ ...S.td, ...S.center }}>
@@ -1306,23 +1308,24 @@ function PrintPortal({ docHtml, onClose, title, children }) {
   )
 }
 
-// Gabungkan realisasi — jika satu OPD punya data di beberapa triwulan,
-// jumlahkan realisasi_keu, realisasi_bop dan rata-rata realisasi_fisik
+// Gabungkan realisasi — jika satu kegiatan (per OPD) punya data di beberapa triwulan,
+// jumlahkan realisasi_keu, realisasi_bop dan rata-rata realisasi_fisik.
+// Key menyertakan created_by agar realisasi dua OPD berbeda tidak digabungkan.
 function mergeRealisasi(rows) {
   const map = {}
   for (const r of rows) {
-    const key = r.bidang_id + '|' + r.program + '|' + r.kegiatan + '|' + r.sub_kegiatan + '|' + (r.is_koordinasi ? '1' : '0')
+    const key = (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
     if (!map[key]) {
       map[key] = { ...r, realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0, _count: 0 }
     }
-    map[key].realisasi_keu += (r.realisasi_keu || 0)
-    map[key].realisasi_bop += (r.realisasi_bop || 0)
+    map[key].realisasi_keu  += (r.realisasi_keu  || 0)
+    map[key].realisasi_bop  += (r.realisasi_bop  || 0)
     map[key].realisasi_fisik += (r.realisasi_fisik || 0)
     map[key]._count++
   }
   return Object.values(map).map(r => ({
     ...r,
-    realisasi_fisik: r._count > 0 ? (r.realisasi_fisik / r._count) : 0,
+    realisasi_fisik: r._count > 0 ? Math.round(r.realisasi_fisik / r._count) : 0,
   }))
 }
 
