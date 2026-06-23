@@ -1025,19 +1025,28 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
 //  LAPORAN REALISASI  (triwulan, semester I, semester II)
 // ══════════════════════════════════════════════════════════════
 export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpRows = [] }) {
-  // Buat lookup pagu_bop dari RKP berdasarkan key unik program+kegiatan+sub_kegiatan+bidang
-  const rkpBopMap = {}
+  // Buat lookup pagu (utama) dan pagu_bop dari RKP berdasarkan key unik bidang+program+kegiatan+sub_kegiatan
+  // Pagu kegiatan = pagu RKP + BOP RKP (sesuai data hasil input Penyusunan RKP)
+  const rkpPaguMap = {}
+  const rkpBopMap  = {}
   for (const r of rkpRows) {
     const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    rkpBopMap[key] = (r.pagu_bop || 0)
+    // Ambil nilai tertinggi jika ada key duplikat (multiJenis)
+    if (!rkpPaguMap[key] || (r.pagu || 0) > rkpPaguMap[key]) rkpPaguMap[key] = (r.pagu || 0)
+    if (!rkpBopMap[key]  || (r.pagu_bop || 0) > rkpBopMap[key])  rkpBopMap[key]  = (r.pagu_bop || 0)
+  }
+  // Helper: ambil pagu utama dari RKP (jika tidak ada, fallback ke r.pagu realisasi)
+  const getRkpPagu = (r) => {
+    const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
+    return rkpPaguMap[key] ?? (r.pagu || 0)
   }
   // Helper: ambil pagu_bop dari RKP untuk satu baris realisasi
   const getBop = (r) => {
     const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
     return rkpBopMap[key] || 0
   }
-  // Kolom (7) = pagu utama + pagu_bop (dari RKP)
-  const getPaguTotal  = (r) => (r.pagu || 0) + getBop(r)
+  // Kolom (7) = pagu kegiatan dari RKP + pagu_bop dari RKP (= total pagu penyusunan RKP)
+  const getPaguTotal  = (r) => getRkpPagu(r) + getBop(r)
   // Kolom (9) = realisasi_keu + realisasi_bop
   const getRealTotal  = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
 
@@ -1323,7 +1332,7 @@ export default function Laporan() {
   // Semester II = Triwulan I + II + III + IV
   const realSem2 = mergeRealisasi(realRows)
   // Per triwulan
-  const realTw   = twFilter ? realRows.filter(r => r.triwulan === twFilter) : realRows
+  const realTw   = twFilter ? realRows.filter(r => r.triwulan === twFilter) : mergeRealisasi(realRows)
 
   const MENUS = [
     { id: 'asistensi',    label: '🤝 BA Asistensi',        count: asisRows.length },
@@ -1354,15 +1363,15 @@ export default function Laporan() {
       )}
 
       {/* Header halaman */}
-      <div className="flex-between mb-2 no-print" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
-        <div className="page-title" style={{ margin: 0 }}>🖨️ Laporan & Cetak Dokumen</div>
+      <div className="flex-between mb-1 no-print" style={{ flexWrap: 'wrap', gap: '.4rem' }}>
+        <div className="page-title" style={{ margin: 0, fontSize: '1.05rem' }}>🖨️ Laporan & Cetak Dokumen</div>
         <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
           <span className="chip">📍 {KOTA}</span>
         </div>
       </div>
 
       {/* Tabs menu */}
-      <div className="tabs no-print" style={{ flexWrap: 'wrap' }}>
+      <div className="laporan-tabs tabs no-print">
         {MENUS.map(m => (
           <div key={m.id} className={`tab ${menu === m.id ? 'active' : ''}`}
             onClick={() => { setMenu(m.id); setSelBA(null) }}>
