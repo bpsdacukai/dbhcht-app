@@ -244,3 +244,50 @@ tbody tr:hover { background: var(--bg3); }
 @media (max-width: 560px) {
   .sidebar { display: none; }
 }
+
+/* ── Sidebar collapsed (hidden) ──────────────────────────────── */
+.sidebar-collapsed {
+  width: 36px !important;
+  overflow: hidden;
+  min-width: 36px;
+}
+.sidebar-collapsed .sidebar-user,
+.sidebar-collapsed .nav-section,
+.sidebar-collapsed .nav-item { display: none; }
+
+/* Tombol toggle sidebar */
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 7px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  font-size: .8rem;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.sidebar-toggle-btn:hover { background: var(--bg3); color: var(--accent); }
+.sidebar-collapsed .sidebar-toggle-btn { border-bottom: none; }
+
+/* ── Laporan & Cetak: layout kompak agar muat satu layar ────── */
+/* Tabs laporan dibuat 2 baris compact dengan scroll otomatis */
+.laporan-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .1rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .6rem;
+}
+.laporan-tabs .tab {
+  padding: 5px 10px;
+  font-size: .75rem;
+}
+/* Print section wrapper: kurangi padding agar tabel muat */
+.print-section-wrapper {
+  overflow-x: auto;
+}
