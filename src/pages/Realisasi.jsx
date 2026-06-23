@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { BIDANG, KOORDINASI, PROGRAM_BY_BIDANG, fmtRp } from '../lib/constants.js'
+import { BIDANG, KOORDINASI, PROGRAM_BY_BIDANG, KODE_REKENING_BY_BIDANG, fmtRp } from '../lib/constants.js'
 import { Modal, EmptyRow, DelBtn, EditBtn, PageHeader, ProgressBar, PctBadge } from '../components/UI.jsx'
 import { getPaguOpd } from '../lib/supabase.js'
 
-const EMPTY = { bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'', pagu:'', realisasi_keu:'', realisasi_bop:'', realisasi_fisik:'', capaian_output:'', triwulan:'I', keterangan:'', is_koordinasi:false }
+const EMPTY = { bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'', kode_rekening:'', nama_rekening:'', volume:'', satuan:'', pagu:'', realisasi_keu:'', realisasi_bop:'', realisasi_fisik:'', capaian_output:'', triwulan:'I', keterangan:'', is_koordinasi:false }
 const TWS = ['I','II','III','IV']
 
 export default function Realisasi() {
@@ -87,7 +87,7 @@ export default function Realisasi() {
     setEditId(null); setModal(true)
   }
   function openEdit(r) {
-    setForm({ ...r, pagu:String(r.pagu||''), realisasi_keu:String(r.realisasi_keu||''), realisasi_bop:String(r.realisasi_bop||''), realisasi_fisik:String(r.realisasi_fisik||'') })
+    setForm({ ...r, pagu:String(r.pagu||''), realisasi_keu:String(r.realisasi_keu||''), realisasi_bop:String(r.realisasi_bop||''), realisasi_fisik:String(r.realisasi_fisik||''), kode_rekening:r.kode_rekening||'', nama_rekening:r.nama_rekening||'', volume:String(r.volume||''), satuan:r.satuan||'' })
     setEditId(r.id); setModal(true)
   }
 
@@ -97,13 +97,17 @@ export default function Realisasi() {
     if (!r) return
     setForm(f => ({
       ...f,
-      program:       r.program,
-      kegiatan:      r.kegiatan,
-      sub_kegiatan:  r.sub_kegiatan,
-      pagu:          String(r.pagu || 0),
-      realisasi_bop: String(r.pagu_bop || 0),   // auto-fill batas BOP dari RKP
-      bidang_id:     r.bidang_id,
-      is_koordinasi: r.is_koordinasi,
+      program:        r.program,
+      kegiatan:       r.kegiatan,
+      sub_kegiatan:   r.sub_kegiatan,
+      kode_rekening:  r.kode_rekening  || '',
+      nama_rekening:  r.nama_rekening  || '',
+      volume:         String(r.volume  || ''),
+      satuan:         r.satuan         || '',
+      pagu:           String(r.pagu    || 0),
+      realisasi_bop:  String(r.pagu_bop || 0),   // auto-fill batas BOP dari RKP
+      bidang_id:      r.bidang_id,
+      is_koordinasi:  r.is_koordinasi,
     }))
   }
 
@@ -114,6 +118,10 @@ export default function Realisasi() {
       tahun, triwulan: form.triwulan,
       bidang_id:       form.is_koordinasi ? 'koordinasi' : form.bidang_id,
       program: form.program, kegiatan: form.kegiatan, sub_kegiatan: form.sub_kegiatan,
+      kode_rekening:   form.kode_rekening || '',
+      nama_rekening:   form.nama_rekening || '',
+      volume:          form.volume ? Number(form.volume) : null,
+      satuan:          form.satuan || '',
       pagu:            Number(form.pagu)||0,
       realisasi_keu:   Number(form.realisasi_keu)||0,
       realisasi_bop:   Number(form.realisasi_bop)||0,
@@ -224,12 +232,13 @@ export default function Realisasi() {
           <table>
             <thead><tr>
               <th>No</th><th>Program / Kegiatan</th>
+              <th>Kode Rekening</th><th style={{width:50}}>Vol</th><th style={{width:70}}>Satuan</th>
               <th>Pagu (Rp)</th><th>Real. Keu (Rp)</th><th>Real. BOP (Rp)</th>
               <th>% Keu</th><th>Fisik %</th><th>OPD</th>
               {canEdit&&<th className="no-print">Aksi</th>}
             </tr></thead>
             <tbody>
-              {visRows.length===0&&<EmptyRow cols={canEdit?9:8} />}
+              {visRows.length===0&&<EmptyRow cols={canEdit?12:11} />}
               {visRows.map((r,i)=>{
                 const pct = r.pagu>0?(r.realisasi_keu/r.pagu*100):0
                 return (
@@ -239,6 +248,12 @@ export default function Realisasi() {
                       <div className="td-bold" style={{fontSize:'.8rem'}}>{r.program}</div>
                       <div className="td-muted">{r.kegiatan}</div>
                     </td>
+                    <td style={{fontSize:'.72rem',color:'var(--text2)'}}>
+                      {r.kode_rekening||'—'}
+                      {r.nama_rekening&&<div style={{fontSize:'.68rem',color:'var(--text3)',fontStyle:'italic'}}>{r.nama_rekening}</div>}
+                    </td>
+                    <td style={{textAlign:'center',fontSize:'.8rem'}}>{r.volume||'—'}</td>
+                    <td style={{fontSize:'.78rem'}}>{r.satuan||'—'}</td>
                     <td className="td-muted">{fmtRp(r.pagu)}</td>
                     <td className="td-money">{fmtRp(r.realisasi_keu)}</td>
                     <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.realisasi_bop||0)}</td>
@@ -258,7 +273,7 @@ export default function Realisasi() {
               })}
               {visRows.length>0&&(
                 <tr style={{background:'var(--bg3)',fontWeight:700}}>
-                  <td colSpan={2} style={{textAlign:'right',fontSize:'.8rem'}}>TOTAL</td>
+                  <td colSpan={5} style={{textAlign:'right',fontSize:'.8rem'}}>TOTAL</td>
                   <td className="td-money">{fmtRp(sumPagu(visRows))}</td>
                   <td className="td-money">{fmtRp(sumKeu(visRows))}</td>
                   <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(visRows.reduce((s,r)=>s+(r.realisasi_bop||0),0))}</td>
@@ -319,6 +334,41 @@ export default function Realisasi() {
           <div className="form-group">
             <label className="form-label">Kegiatan / Sub Kegiatan</label>
             <input className="form-control" value={form.kegiatan} onChange={e=>setForm({...form,kegiatan:e.target.value})} />
+          </div>
+
+          {/* ── Kode Rekening ── */}
+          <div className="form-group">
+            <label className="form-label">Kode / Klasifikasi Nomenklatur dalam Penganggaran APBD</label>
+            <select className="form-control" value={form.kode_rekening||''} onChange={e => {
+              const bid = form.is_koordinasi ? 'koordinasi' : form.bidang_id
+              const list = KODE_REKENING_BY_BIDANG[bid] || []
+              const item = list.find(x => x.kode === e.target.value)
+              setForm({...form, kode_rekening: e.target.value, nama_rekening: item?.nama||''})
+            }}>
+              <option value="">-- Pilih kode rekening --</option>
+              {(KODE_REKENING_BY_BIDANG[form.is_koordinasi?'koordinasi':form.bidang_id]||[]).map(x=>(
+                <option key={x.kode} value={x.kode}>{x.kode} — {x.nama}</option>
+              ))}
+            </select>
+            {form.nama_rekening && (
+              <div style={{fontSize:'.75rem',color:'var(--text2)',marginTop:3,fontStyle:'italic'}}>{form.nama_rekening}</div>
+            )}
+          </div>
+
+          {/* ── Volume dan Satuan ── */}
+          <div className="form-row">
+            <div className="form-group" style={{flex:1}}>
+              <label className="form-label">Volume</label>
+              <input className="form-control" type="number" min="0" step="any"
+                value={form.volume||''} placeholder="Contoh: 100"
+                onChange={e=>setForm({...form,volume:e.target.value})} />
+            </div>
+            <div className="form-group" style={{flex:2}}>
+              <label className="form-label">Satuan</label>
+              <input className="form-control"
+                value={form.satuan||''} placeholder="Contoh: orang, unit, paket, kegiatan"
+                onChange={e=>setForm({...form,satuan:e.target.value})} />
+            </div>
           </div>
 
           <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,padding:'.75rem',marginBottom:'.75rem'}}>
