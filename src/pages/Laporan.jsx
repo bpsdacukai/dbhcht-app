@@ -1025,37 +1025,56 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
 //  LAPORAN REALISASI  (triwulan, semester I, semester II)
 // ══════════════════════════════════════════════════════════════
 export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpRows = [] }) {
-  // Buat lookup pagu (utama) dan pagu_bop dari RKP berdasarkan key unik bidang+program+kegiatan+sub_kegiatan
+  // Buat lookup pagu (utama) dan pagu_bop dari RKP berdasarkan key unik
   // Pagu kegiatan = pagu RKP + BOP RKP (sesuai data hasil input Penyusunan RKP)
-  const rkpPaguMap = {}
-  const rkpBopMap  = {}
+  const rkpMap = {}   // key -> { pagu, pagu_bop, ...fullRow }
   for (const r of rkpRows) {
     const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    // Ambil nilai tertinggi jika ada key duplikat (multiJenis)
-    if (!rkpPaguMap[key] || (r.pagu || 0) > rkpPaguMap[key]) rkpPaguMap[key] = (r.pagu || 0)
-    if (!rkpBopMap[key]  || (r.pagu_bop || 0) > rkpBopMap[key])  rkpBopMap[key]  = (r.pagu_bop || 0)
+    if (!rkpMap[key] || (r.pagu || 0) >= (rkpMap[key].pagu || 0)) {
+      rkpMap[key] = r
+    }
   }
-  // Helper: ambil pagu utama dari RKP (jika tidak ada, fallback ke r.pagu realisasi)
+
+  // Gabungkan rows realisasi dengan baris RKP yang belum ada realisasinya
+  // agar semua kegiatan dari RKP tampil (dengan realisasi 0 jika belum ada data)
+  const realKeySet = new Set(rows.map(r =>
+    (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
+  ))
+  const rkpOnlyRows = Object.values(rkpMap)
+    .filter(r => !realKeySet.has(
+      (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
+    ))
+    .map(r => ({
+      ...r,
+      realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0,
+      target_output: r.target_output || '',
+      keterangan: '',
+    }))
+
+  // allRows = realisasi yang ada + baris RKP yang belum ada realisasinya
+  const allRows = [...rows, ...rkpOnlyRows]
+
+  // Helper: ambil pagu utama dari RKP
   const getRkpPagu = (r) => {
     const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    return rkpPaguMap[key] ?? (r.pagu || 0)
+    return (rkpMap[key]?.pagu) ?? (r.pagu || 0)
   }
-  // Helper: ambil pagu_bop dari RKP untuk satu baris realisasi
+  // Helper: ambil pagu_bop dari RKP
   const getBop = (r) => {
     const key = (r.bidang_id || '') + '|' + (r.program || '') + '|' + (r.kegiatan || '') + '|' + (r.sub_kegiatan || '') + '|' + (r.is_koordinasi ? '1' : '0')
-    return rkpBopMap[key] || 0
+    return (rkpMap[key]?.pagu_bop) || 0
   }
-  // Kolom (7) = pagu kegiatan dari RKP + pagu_bop dari RKP (= total pagu penyusunan RKP)
+  // Kolom (7) = pagu kegiatan dari RKP + pagu_bop RKP
   const getPaguTotal  = (r) => getRkpPagu(r) + getBop(r)
   // Kolom (9) = realisasi_keu + realisasi_bop
   const getRealTotal  = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
 
-  const koorRows   = rows.filter(r => r.is_koordinasi)
-  const normalRows = rows.filter(r => !r.is_koordinasi)
+  const koorRows   = allRows.filter(r => r.is_koordinasi)
+  const normalRows = allRows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
-  const totalPagu = rows.reduce((s, r) => s + getPaguTotal(r), 0)
-  const totalReal = rows.reduce((s, r) => s + getRealTotal(r), 0)
+  const totalPagu = allRows.reduce((s, r) => s + getPaguTotal(r), 0)
+  const totalReal = allRows.reduce((s, r) => s + getRealTotal(r), 0)
   return (
     <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
@@ -1118,27 +1137,39 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
               </tr>,
             ]
           })}
-          {koorRows.length > 0 && [
-            <tr key="h-koor" style={{ background: '#fce4d6' }}>
-              <td style={{ ...S.td, ...S.bold, ...S.center }}>D.</td>
-              <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
-            </tr>,
-            ...koorRows.map((r, ri) => (
-              <tr key={r.id}>
-                <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
-                <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                <td style={S.td}>{r.sub_kegiatan || ''}</td>
-                <td style={S.td}>{r.kode_rekening || ''}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
-                <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
-                <td style={S.td}>{r.keterangan || ''}</td>
-              </tr>
-            )),
-          ]}
+          {koorRows.length > 0 && (() => {
+            const kPagu = koorRows.reduce((s, r) => s + getPaguTotal(r), 0)
+            const kReal = koorRows.reduce((s, r) => s + getRealTotal(r), 0)
+            return [
+              <tr key="h-koor" style={{ background: '#fce4d6' }}>
+                <td style={{ ...S.td, ...S.bold, ...S.center }}>D.</td>
+                <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
+              </tr>,
+              ...koorRows.map((r, ri) => (
+                <tr key={r.id || ('koor-' + ri)}>
+                  <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
+                  <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
+                  <td style={S.td}>{r.sub_kegiatan || ''}</td>
+                  <td style={S.td}>{r.kode_rekening || ''}</td>
+                  <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
+                  <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguTotal(r))}</td>
+                  <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
+                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
+                  <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
+                  <td style={S.td}>{r.keterangan || ''}</td>
+                </tr>
+              )),
+              <tr key="t-koor" style={{ background: '#fce4d6', fontWeight: 'bold' }}>
+                <td colSpan={6} style={{ ...S.td, ...S.right }}>Total Kegiatan Koordinasi Pengelolaan DBH CHT</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(kPagu)}</td>
+                <td style={S.td} />
+                <td style={{ ...S.td, ...S.right }}>{fmt(kReal)}</td>
+                <td style={{ ...S.td, ...S.center }}>{kPagu > 0 ? ((kReal / kPagu) * 100).toFixed(1) : '0.0'}%</td>
+                <td style={S.td} />
+              </tr>,
+            ]
+          })()}
           <tr style={{ background: '#a9d18e', fontWeight: 'bold', fontSize: 10 }}>
             <td colSpan={6} style={{ ...S.td, ...S.right }}>TOTAL</td>
             <td style={{ ...S.td, ...S.right }}>{fmt(totalPagu)}</td>
@@ -1319,7 +1350,7 @@ export default function Laporan() {
       (() => { let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('bidang_id'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
       (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
       // Lookup pagu_bop: semua RKP tahun ini, semua jenis & semua OPD (tanpa filter)
-      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu_bop,created_by').eq('tahun', tahun),
+      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu,pagu_bop,created_by').eq('tahun', tahun),
     ])
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
     setRkpAll(ra || [])
@@ -1348,6 +1379,13 @@ export default function Laporan() {
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
 
+  const MENU_GROUPS = [
+    { section: 'ASISTENSI', items: ['asistensi', 'rekap_asis'] },
+    { section: 'REKONSILIASI', items: ['rekonsiliasi', 'rekap_rekon'] },
+    { section: 'DOKUMEN', items: ['rkp'] },
+    { section: 'REALISASI', items: ['realisasi_tw', 'realisasi_s1', 'realisasi_s2'] },
+  ]
+
   return (
     <div>
       {/* Overlay preview cetak */}
@@ -1363,34 +1401,55 @@ export default function Laporan() {
       )}
 
       {/* Header halaman */}
-      <div className="flex-between mb-1 no-print" style={{ flexWrap: 'wrap', gap: '.4rem' }}>
+      <div className="flex-between no-print" style={{ flexWrap: 'wrap', gap: '.4rem', marginBottom: '.5rem' }}>
         <div className="page-title" style={{ margin: 0, fontSize: '1.05rem' }}>🖨️ Laporan & Cetak Dokumen</div>
-        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-          <span className="chip">📍 {KOTA}</span>
-        </div>
+        <span className="chip">📍 {KOTA}</span>
       </div>
 
-      {/* Tabs menu */}
-      <div className="laporan-tabs tabs no-print">
-        {MENUS.map(m => (
-          <div key={m.id} className={`tab ${menu === m.id ? 'active' : ''}`}
-            onClick={() => { setMenu(m.id); setSelBA(null) }}>
-            {m.label} <span style={{ fontSize: '.7rem', color: 'var(--text2)', marginLeft: 3 }}>({m.count})</span>
-          </div>
-        ))}
-      </div>
+      {/* Layout 2-kolom: sidenav kiri + konten kanan */}
+      <div className="laporan-layout no-print-layout">
+        {/* Sidebar navigasi vertikal */}
+        <nav className="laporan-sidenav no-print">
+          {MENU_GROUPS.map(g => (
+            <div key={g.section}>
+              <div className="laporan-sidenav-section">{g.section}</div>
+              {g.items.map(id => {
+                const m = MENUS.find(x => x.id === id)
+                if (!m) return null
+                const needsTwFilter = id === 'rekonsiliasi' || id === 'rekap_rekon' || id === 'realisasi_tw'
+                return (
+                  <div key={id}>
+                    <div
+                      className={`laporan-sidenav-item ${menu === id ? 'active' : ''}`}
+                      onClick={() => { setMenu(id); setSelBA(null) }}
+                    >
+                      <span style={{ fontSize: '.85rem' }}>{m.label.split(' ')[0]}</span>
+                      <span style={{ flex: 1 }}>{m.label.split(' ').slice(1).join(' ')}</span>
+                      <span style={{ fontSize: '.65rem', color: 'var(--text2)' }}>{m.count}</span>
+                    </div>
+                    {/* Filter triwulan inline di sidenav saat menu aktif */}
+                    {menu === id && needsTwFilter && (
+                      <div style={{ padding: '.2rem .75rem .4rem', borderLeft: '3px solid var(--accent)' }}>
+                        <select
+                          className="form-control"
+                          style={{ fontSize: '.72rem', padding: '3px 6px', height: 'auto' }}
+                          value={twFilter}
+                          onChange={e => setTwFilter(e.target.value)}
+                        >
+                          <option value="">Semua Triwulan</option>
+                          {['I','II','III','IV'].map(t => <option key={t} value={t}>Triwulan {t}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </nav>
 
-      {/* Filter triwulan (hanya untuk rekonsiliasi dan realisasi triwulan) */}
-      {(menu === 'rekonsiliasi' || menu === 'rekap_rekon' || menu === 'realisasi_tw') && (
-        <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-          <label style={{ fontSize: '.82rem', color: 'var(--text2)' }}>Filter Triwulan:</label>
-          <select className="form-control" style={{ width: 160 }} value={twFilter} onChange={e => setTwFilter(e.target.value)}>
-            <option value="">Semua Triwulan</option>
-            {['I', 'II', 'III', 'IV'].map(t => <option key={t} value={t}>Triwulan {t}</option>)}
-          </select>
-        </div>
-      )}
-
+        {/* Area konten */}
+        <div className="laporan-body">
       {/* ── Konten ── */}
 
       {/* Daftar BA Asistensi */}
@@ -1557,6 +1616,8 @@ export default function Laporan() {
           </div>
         </div>
       )}
+        </div> {/* /laporan-body */}
+      </div> {/* /laporan-layout */}
     </div>
   )
 }
