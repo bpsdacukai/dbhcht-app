@@ -10,7 +10,7 @@ const EMPTY = { bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'', pagu:'',
 const TWS = ['I','II','III','IV']
 
 export default function Realisasi() {
-  const { tahun, notify } = useApp()
+  const { tahun, jenis, notify } = useApp()
   const { profile, isSekretariat } = useAuth()
   const [rows,    setRows]    = useState([])
   const [rkpRows, setRkpRows] = useState([]) // untuk auto-fill dari RKP
@@ -21,6 +21,7 @@ export default function Realisasi() {
   const [bidTab,  setBidTab]  = useState(null)
   const [loading, setLoading] = useState(false)
   const [paguOpd, setPaguOpd] = useState(null)
+  const [totalPaguTA, setTotalPaguTA] = useState(0)
 
   useEffect(() => {
     if (!bidTab && profile) setBidTab(isSekretariat ? 'kesmas' : (profile.bidang||'kesmas'))
@@ -28,6 +29,15 @@ export default function Realisasi() {
 
   useEffect(() => { if (bidTab) load() }, [tahun, bidTab])
   useEffect(() => { if (profile?.id) getPaguOpd(profile.id, tahun, 'Murni').then(p=>setPaguOpd(p)) }, [profile, tahun])
+
+  // Load total pagu TA dari pagu_alokasi (Murni untuk Sem I, Perubahan untuk Sem II)
+  useEffect(() => {
+    async function loadTotalPagu() {
+      const { data } = await supabase.from('pagu_alokasi').select('total_pagu').eq('tahun', tahun).eq('jenis', jenis).maybeSingle()
+      setTotalPaguTA(data?.total_pagu || 0)
+    }
+    loadTotalPagu()
+  }, [tahun, jenis])
 
   async function load() {
     let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('created_at')
@@ -49,6 +59,7 @@ export default function Realisasi() {
     : twRows.filter(r => r.bidang_id === bidTab && !r.is_koordinasi)
 
   const sumKeu  = (arr) => arr.reduce((s,r)=>s+(r.realisasi_keu||0),0)
+  const sumBop  = (arr) => arr.reduce((s,r)=>s+(r.realisasi_bop||0),0)
   // Pagu dihitung unik per program+kegiatan+sub_kegiatan+OPD karena 1 program hanya punya 1 pagu anggaran
   const uniquePagu = (arr) => {
     const seen = new Set()
@@ -60,10 +71,12 @@ export default function Realisasi() {
     }, 0)
   }
   const sumPagu = uniquePagu
-  const sem1    = sumKeu(rows.filter(r=>['I','II'].includes(r.triwulan)))
-  const semAll  = sumKeu(rows)
+  // sem1 = Real.Keu + Real.BOP semua bidang & koordinasi, Triwulan I+II
+  const rowsSem1   = rows.filter(r => ['I','II'].includes(r.triwulan))
+  const sem1       = sumKeu(rowsSem1) + sumBop(rowsSem1)
+  // Capaian = sem1 dibanding Total Pagu TA dari pagu_alokasi (bukan pagu 1 OPD)
+  const pctCapaian = totalPaguTA > 0 ? (sem1 / totalPaguTA * 100) : 0
   const totalPaguOpd = (paguOpd?.pagu_utama||0) + (paguOpd?.bop||0)
-  const pctCapaian   = totalPaguOpd > 0 ? (semAll/totalPaguOpd*100) : 0
 
   const canEdit = isSekretariat
     || (profile?.role === 'opd' && (!bidTab || profile.bidang === bidTab || isKoor))
@@ -139,14 +152,14 @@ export default function Realisasi() {
         <div className="stat-box">
           <div className="stat-lbl">Realisasi Semester I (Tw I+II)</div>
           <div className="stat-val" style={{color:'var(--info)'}}>{fmtRp(sem1)}</div>
-          <div className="stat-sub">{totalPaguOpd>0?((sem1/totalPaguOpd)*100).toFixed(1):0}% dari pagu OPD</div>
+          <div className="stat-sub">Real. Keu + BOP · Semua Bidang & Koordinasi</div>
         </div>
         <div className="stat-box">
           <div className="stat-lbl">Capaian Realisasi (%)</div>
           <div className="stat-val" style={{color:pctCapaian>=80?'var(--accent)':pctCapaian>=50?'var(--gold)':'var(--danger)'}}>
             {pctCapaian.toFixed(1)}%
           </div>
-          <div className="stat-sub">Total: {fmtRp(semAll)}</div>
+          <div className="stat-sub">{fmtRp(sem1)} dari Pagu TA {fmtRp(totalPaguTA)}</div>
         </div>
       </div>
 
