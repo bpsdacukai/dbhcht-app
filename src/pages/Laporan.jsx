@@ -936,17 +936,24 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
       </div>
       <table style={{ ...S.tbl, fontSize: 9 }}>
         <thead>
+          {/* Baris 1: label kolom */}
           <tr>
-            <th style={{ ...S.th, width: 28 }}>(1)<br />No.</th>
-            <th style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
-            <th style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
-            <th style={{ ...S.th, width: 38 }}>(5)<br />Vol</th>
-            <th style={{ ...S.th, width: 38 }}>(6)<br />Sat</th>
-            <th style={{ ...S.th, width: 85 }}>(7)<br />Pagu Kegiatan (Rp)</th>
+            <th style={{ ...S.th, width: 28 }}>No.</th>
+            <th style={S.th}>Bidang, Program, dan Kegiatan</th>
+            <th style={S.th}>Rincian Kegiatan dalam Ketentuan Teknis</th>
+            <th style={S.th}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
+            <th style={{ ...S.th, width: 38 }}>Vol</th>
+            <th style={{ ...S.th, width: 38 }}>Sat</th>
+            <th style={{ ...S.th, width: 85 }}>Pagu Kegiatan (Rp)</th>
             <th style={{ ...S.th, width: 72 }}>BOP ≤10% (Rp)</th>
             <th style={{ ...S.th, width: 85 }}>Total (Rp)</th>
-            <th style={S.th}>(8)<br />Ket.</th>
+            <th style={S.th}>Ket.</th>
+          </tr>
+          {/* Baris 2: nomor urut kolom */}
+          <tr>
+            {['(1)','(2)','(3)','(4)','(5)','(6)','(7)','(8)','(9)','(10)'].map(n => (
+              <th key={n} style={{ ...S.th, background: '#b8cce4', fontWeight: 'bold', fontSize: 9, padding: '2px 4px' }}>{n}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
