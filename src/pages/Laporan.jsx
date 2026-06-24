@@ -1201,6 +1201,30 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan
       </div>
+
+      {/* ── Blok Tanda Tangan ─────────────────────────────────── */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 32, fontSize: 10 }}>
+        <tbody>
+          <tr>
+            {/* Kiri: Koordinator DBH CHT */}
+            <td style={{ width: '50%', textAlign: 'center', padding: '0 12px', verticalAlign: 'top' }}>
+              <div style={{ marginBottom: 4 }}>Batu, ………………………… {tahun}</div>
+              <div style={{ fontWeight: 'bold', marginBottom: 72 }}>Koordinator DBH CHT</div>
+              <div style={{ borderBottom: '1px solid #000', width: 180, margin: '0 auto 4px' }} />
+              <div style={{ fontWeight: 'bold' }}>………………………………………………</div>
+              <div>NIP. ………………………………………</div>
+            </td>
+            {/* Kanan: Wali Kota Batu */}
+            <td style={{ width: '50%', textAlign: 'center', padding: '0 12px', verticalAlign: 'top' }}>
+              <div style={{ marginBottom: 4 }}>Batu, ………………………… {tahun}</div>
+              <div style={{ fontWeight: 'bold', marginBottom: 72 }}>Wali Kota Batu</div>
+              <div style={{ borderBottom: '1px solid #000', width: 180, margin: '0 auto 4px' }} />
+              <div style={{ fontWeight: 'bold' }}>………………………………………………</div>
+              <div>NIP. / NRP. ………………………………</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -1213,6 +1237,47 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
 // Pendekatan paling reliable: render ke HTML string, buka tab baru, print dari sana
 
 // Fungsi untuk mengkonversi React element ke HTML string dan print di tab baru
+// Unduh dokumen sebagai file Word (.doc) — menggunakan HTML blob, bisa dibuka di Word/LibreOffice
+export function downloadAsWord(htmlContent, filename = 'laporan.doc') {
+  const wordHtml = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:w="urn:schemas-microsoft-com:office:word"
+          xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8" />
+      <meta name=ProgId content=Word.Document />
+      <meta name=Generator content="Microsoft Word 15" />
+      <meta name=Originator content="Microsoft Word 15" />
+      <!--[if gte mso 9]>
+      <xml><w:WordDocument>
+        <w:View>Print</w:View>
+        <w:Zoom>90</w:Zoom>
+        <w:DoNotOptimizeForBrowser />
+      </w:WordDocument></xml>
+      <![endif]-->
+      <style>
+        @page { size: 29.7cm 21.0cm landscape; margin: 1.5cm 1.8cm; }
+        body { font-family: Arial, sans-serif; font-size: 9pt; }
+        table { border-collapse: collapse; width: 100%; font-size: 8pt; }
+        th { border: 1px solid #000; padding: 3px 5px; background: #d9d9d9; font-weight: bold;
+             text-align: center; vertical-align: middle; word-wrap: break-word; }
+        td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; word-wrap: break-word; }
+        .doc-header { text-align: center; margin-bottom: 10px; }
+        .note { font-size: 8pt; font-style: italic; margin-top: 4px; }
+      </style>
+    </head>
+    <body>${htmlContent}</body>
+    </html>`
+  const blob = new Blob(['﻿', wordHtml], { type: 'application/msword;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 200)
+}
+
 export function printDocumentInNewTab(htmlContent, title, landscape = false) {
   const winW = landscape ? 1200 : 900
   const printWin = window.open('', '_blank', `width=${winW},height=700`)
@@ -1597,8 +1662,9 @@ export default function Laporan() {
       {/* Realisasi Per Triwulan */}
       {menu === 'realisasi_tw' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan</button>
+            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_' + (twFilter||'Semua') + '_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
@@ -1612,8 +1678,9 @@ export default function Laporan() {
       {/* Realisasi Semester I */}
       {menu === 'realisasi_s1' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester I</button>
+            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_Semester_I_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
@@ -1625,8 +1692,9 @@ export default function Laporan() {
       {/* Realisasi Semester II */}
       {menu === 'realisasi_s2' && (
         <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester II</button>
+            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_Semester_II_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
             <span className="chip">🔄 Landscape A4</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
