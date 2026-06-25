@@ -297,7 +297,9 @@ export default function Realisasi() {
               <label className="form-label" style={{marginBottom:'.3rem'}}>⚡ Isi Otomatis dari RKP</label>
               <select className="form-control" defaultValue="" onChange={e=>autoFillFromRkp(e.target.value)}>
                 <option value="">-- Pilih kegiatan dari RKP untuk auto-fill --</option>
-                {rkpRows.map(r=><option key={r.id} value={r.id}>{r.program} — {r.kegiatan||r.sub_kegiatan||''}</option>)}
+                {rkpRows.map(r=><option key={r.id} value={r.id}>
+                  {r.program} — {r.kegiatan||r.sub_kegiatan||''} · Pagu: Rp {new Intl.NumberFormat('id-ID').format((r.pagu||0)+(r.pagu_bop||0))}
+                </option>)}
               </select>
             </div>
           )}
