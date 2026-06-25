@@ -45,8 +45,8 @@ export default function Realisasi() {
     const { data } = await q
     setRows(data||[])
 
-    // Load RKP milik OPD ini untuk auto-fill
-    let rq = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun)
+    // Load RKP milik OPD ini untuk auto-fill — filter jenis agar sinkron dengan laporan
+    let rq = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis)
     if (!isSekretariat) rq = rq.eq('created_by', profile?.id)
     const { data: rd } = await rq
     setRkpRows(rd||[])
