@@ -376,7 +376,19 @@ export default function Realisasi() {
             <div className="form-row">
               <div className="form-group" style={{flex:1}}>
                 <label className="form-label">Pagu (Rp)</label>
-                <input className="form-control" type="number" value={form.pagu} onChange={e=>setForm({...form,pagu:e.target.value})} />
+                <input className="form-control" type="number" value={form.pagu}
+                  readOnly
+                  style={{background:'var(--bg3)',cursor:'not-allowed',color:'var(--text2)'}}
+                  title="Pagu otomatis dari RKP. Gunakan ⚡ Isi Otomatis di atas." />
+                {!form.pagu || Number(form.pagu) === 0 ? (
+                  <div style={{fontSize:'.72rem',color:'var(--danger)',marginTop:2}}>
+                    ⚠️ Pilih kegiatan dari RKP di atas untuk mengisi pagu otomatis
+                  </div>
+                ) : (
+                  <div style={{fontSize:'.72rem',color:'var(--accent)',marginTop:2}}>
+                    ✅ Sinkron dari RKP (Pagu Utama + BOP)
+                  </div>
+                )}
               </div>
               <div className="form-group" style={{flex:1}}>
                 <label className="form-label">Realisasi Keuangan (Rp)</label>
