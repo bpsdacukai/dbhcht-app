@@ -104,8 +104,8 @@ export default function Realisasi() {
       nama_rekening:  r.nama_rekening  || '',
       volume:         String(r.volume  || ''),
       satuan:         r.satuan         || '',
-      pagu:           String(r.pagu    || 0),
-      realisasi_bop:  String(r.pagu_bop || 0),   // auto-fill batas BOP dari RKP
+      pagu:           String((r.pagu || 0) + (r.pagu_bop || 0)),  // pagu total = utama + BOP dari RKP
+      realisasi_bop:  String(r.pagu_bop || 0),   // batas BOP dari RKP
       bidang_id:      r.bidang_id,
       is_koordinasi:  r.is_koordinasi,
     }))
