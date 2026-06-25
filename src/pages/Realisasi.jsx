@@ -113,6 +113,10 @@ export default function Realisasi() {
 
   async function save() {
     if (!form.program) { notify('Program wajib!', 'warn'); return }
+    if (!editId && (!form.pagu || Number(form.pagu) === 0)) {
+      notify('Pagu belum terisi. Gunakan "⚡ Isi Otomatis dari RKP" untuk memilih kegiatan terlebih dahulu.', 'warn')
+      return
+    }
     setLoading(true)
     const payload = {
       tahun, triwulan: form.triwulan,
