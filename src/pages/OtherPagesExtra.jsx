@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { BIDANG, KOORDINASI, fmtRp, maxBop } from '../lib/constants.js'
+import { BIDANG, KOORDINASI, PROGRAM_BY_BIDANG, KODE_REKENING_BY_BIDANG, fmtRp, maxBop } from '../lib/constants.js'
 import { Modal, EmptyRow, DelBtn, PageHeader } from '../components/UI.jsx'
 
 // ── PAGU ALOKASI ───────────────────────────────────────────────
@@ -15,7 +15,7 @@ export function Pagu() {
   const [editing,  setEdit]     = useState(false)
   const [editOpd,  setEditOpd]  = useState(null)
   const [form,     setForm]     = useState({})
-  const [opdForm,  setOpdForm]  = useState({ profile_id:'', pagu_utama:'', bop:'', keterangan:'' })
+  const [opdForm,  setOpdForm]  = useState({ profile_id:'', bidang:'', program:'', kegiatan:'', pagu_utama:'', bop:'', keterangan:'' })
   const [loading,  setLoading]  = useState(false)
 
   useEffect(() => { load(); loadOpds() }, [tahun, jenis])
@@ -49,17 +49,30 @@ export function Pagu() {
   }
 
   async function saveOpdPagu() {
+    if (!opdForm.profile_id) { notify('OPD wajib dipilih!', 'error'); return }
+    if (!opdForm.bidang)     { notify('Bidang wajib dipilih!', 'error'); return }
+    if (!opdForm.program)    { notify('Program wajib diisi!', 'error'); return }
+    if (!opdForm.kegiatan)   { notify('Kegiatan wajib diisi!', 'error'); return }
     const bop = Number(opdForm.bop)||0
     const mx  = maxBop(Number(opdForm.pagu_utama)||0)
     if (bop > mx) { notify('BOP melebihi 10%! Maks: '+fmtRp(mx), 'error'); return }
     setLoading(true)
     const payload = {
       profile_id: opdForm.profile_id, tahun, jenis,
+      bidang:     opdForm.bidang,
+      program:    opdForm.program,
+      kegiatan:   opdForm.kegiatan,
       pagu_utama: Number(opdForm.pagu_utama)||0,
       bop, keterangan: opdForm.keterangan,
       ditetapkan_oleh: profile?.id
     }
-    const exists = paguOpds.find(p=>p.profile_id===opdForm.profile_id)
+    // Composite key: 1 OPD bisa punya beberapa kegiatan berbeda
+    const exists = paguOpds.find(p=>
+      p.profile_id===opdForm.profile_id &&
+      p.bidang===opdForm.bidang &&
+      p.program===opdForm.program &&
+      p.kegiatan===opdForm.kegiatan
+    )
     const { error } = exists
       ? await supabase.from('pagu_opd').update(payload).eq('id', exists.id)
       : await supabase.from('pagu_opd').insert(payload)
@@ -146,19 +159,22 @@ export function Pagu() {
         <div className="tbl-wrap">
           <table>
             <thead><tr>
-              <th>OPD</th><th>Bidang</th><th>Pagu Utama (Rp)</th>
-              <th>BOP (Rp)</th><th>Total (Rp)</th><th>Keterangan</th><th>Aksi</th>
+              <th>No</th><th>OPD</th><th>Bidang</th><th>Program</th><th>Kegiatan</th>
+              <th>Pagu Utama (Rp)</th><th>BOP (Rp)</th><th>Total (Rp)</th><th>Keterangan</th><th>Aksi</th>
             </tr></thead>
             <tbody>
-              {paguOpds.length===0 && <EmptyRow cols={7} msg="Belum ada pagu OPD ditetapkan." />}
-              {paguOpds.map(p=>(
+              {paguOpds.length===0 && <EmptyRow cols={10} msg="Belum ada pagu OPD ditetapkan." />}
+              {paguOpds.map((p,i)=>(
                 <tr key={p.id}>
+                  <td style={{ textAlign:'center', color:'var(--text2)', fontSize:'.8rem' }}>{i+1}</td>
                   <td className="td-bold">{p.profiles?.nama}</td>
                   <td>
                     <span className="badge badge-green" style={{ fontSize:'.7rem' }}>
-                      {[...BIDANG,KOORDINASI].find(b=>b.id===p.profiles?.bidang)?.short||p.profiles?.bidang}
+                      {[...BIDANG,KOORDINASI].find(b=>b.id===(p.bidang||p.profiles?.bidang))?.short||(p.bidang||p.profiles?.bidang)}
                     </span>
                   </td>
+                  <td style={{ fontSize:'.78rem', maxWidth:180 }}>{p.program||'-'}</td>
+                  <td style={{ fontSize:'.78rem', maxWidth:200 }}>{p.kegiatan||'-'}</td>
                   <td className="td-money">{fmtRp(p.pagu_utama)}</td>
                   <td style={{ color:'var(--gold)', fontWeight:600 }}>
                     {fmtRp(p.bop)}
@@ -170,7 +186,11 @@ export function Pagu() {
                   <td className="td-muted">{p.keterangan}</td>
                   <td>
                     <button className="btn btn-outline btn-sm" onClick={()=>{
-                      setOpdForm({profile_id:p.profile_id, pagu_utama:String(p.pagu_utama), bop:String(p.bop), keterangan:p.keterangan||''})
+                      setOpdForm({
+                        profile_id:p.profile_id, bidang:p.bidang||p.profiles?.bidang||'',
+                        program:p.program||'', kegiatan:p.kegiatan||'',
+                        pagu_utama:String(p.pagu_utama), bop:String(p.bop), keterangan:p.keterangan||''
+                      })
                       setEditOpd(true)
                     }}>✏️</button>
                   </td>
@@ -178,7 +198,7 @@ export function Pagu() {
               ))}
               {paguOpds.length>0 && (
                 <tr style={{ background:'var(--bg3)', fontWeight:700 }}>
-                  <td colSpan={2} style={{ textAlign:'right', fontSize:'.8rem' }}>TOTAL</td>
+                  <td colSpan={5} style={{ textAlign:'right', fontSize:'.8rem' }}>TOTAL</td>
                   <td className="td-money">{fmtRp(paguOpds.reduce((s,p)=>s+(p.pagu_utama||0),0))}</td>
                   <td style={{ color:'var(--gold)', fontWeight:600 }}>{fmtRp(paguOpds.reduce((s,p)=>s+(p.bop||0),0))}</td>
                   <td className="td-money">{fmtRp(paguOpds.reduce((s,p)=>s+(p.pagu_utama||0)+(p.bop||0),0))}</td>
@@ -192,14 +212,62 @@ export function Pagu() {
 
       {editOpd && (
         <Modal title="Tetapkan Pagu OPD" onClose={()=>setEditOpd(null)}>
+          {/* OPD */}
           <div className="form-group">
             <label className="form-label">OPD *</label>
             <select className="form-control" value={opdForm.profile_id}
-              onChange={e=>setOpdForm({...opdForm,profile_id:e.target.value})}>
+              onChange={e=>{
+                const opd = opds.find(o=>o.id===e.target.value)
+                setOpdForm({...opdForm, profile_id:e.target.value, bidang:opd?.bidang||'', program:'', kegiatan:''})
+              }}>
               <option value="">-- Pilih OPD --</option>
               {opds.map(o=><option key={o.id} value={o.id}>{o.nama}</option>)}
             </select>
           </div>
+
+          {/* Bidang — bisa override dari default bidang OPD */}
+          <div className="form-group">
+            <label className="form-label">Bidang *</label>
+            <select className="form-control" value={opdForm.bidang}
+              onChange={e=>setOpdForm({...opdForm, bidang:e.target.value, program:'', kegiatan:''})}>
+              <option value="">-- Pilih Bidang --</option>
+              {[...BIDANG, KOORDINASI].map(b=>(
+                <option key={b.id} value={b.id}>{b.icon} {b.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Program */}
+          <div className="form-group">
+            <label className="form-label">Program *</label>
+            <select className="form-control" value={opdForm.program}
+              onChange={e=>setOpdForm({...opdForm, program:e.target.value, kegiatan:''})}>
+              <option value="">-- Pilih Program --</option>
+              {(PROGRAM_BY_BIDANG[opdForm.bidang]||PROGRAM_BY_BIDANG.all).map(pr=>(
+                <option key={pr} value={pr}>{pr}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Kegiatan — ambil dari KODE_REKENING sesuai bidang, atau input manual */}
+          <div className="form-group">
+            <label className="form-label">Kegiatan / Sub Kegiatan *</label>
+            <select className="form-control" value={opdForm.kegiatan}
+              onChange={e=>setOpdForm({...opdForm, kegiatan:e.target.value})}>
+              <option value="">-- Pilih Kegiatan --</option>
+              {(KODE_REKENING_BY_BIDANG[opdForm.bidang]||[]).map(k=>(
+                <option key={k.kode} value={k.nama}>[{k.kode}] {k.nama}</option>
+              ))}
+              <option value="__manual">✏️ Ketik manual...</option>
+            </select>
+            {opdForm.kegiatan==='__manual' && (
+              <input className="form-control" style={{ marginTop:'.4rem' }}
+                placeholder="Ketik nama kegiatan / sub kegiatan..."
+                onChange={e=>setOpdForm({...opdForm, kegiatan:e.target.value})} />
+            )}
+          </div>
+
+          {/* Pagu & BOP */}
           <div className="form-row">
             <div className="form-group" style={{ flex:1 }}>
               <label className="form-label">Pagu Utama (Rp) *</label>
@@ -222,7 +290,7 @@ export function Pagu() {
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Total Pagu OPD</label>
+            <label className="form-label">Total Pagu Kegiatan</label>
             <input className="form-control" readOnly
               value={fmtRp((Number(opdForm.pagu_utama)||0)+(Number(opdForm.bop)||0))}
               style={{ fontWeight:700, color:'var(--accent)', background:'var(--bg3)' }} />
