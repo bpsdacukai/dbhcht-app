@@ -23,12 +23,7 @@ export const PROGRAM_BY_BIDANG = {
     'Kegiatan Pendukung Pengelolaan DBH CHT',
   ],
   kesehatan: [
-    'Pelayanan Kesehatan Promotif/Preventif/Kuratif',
-    'Penyediaan/Peningkatan Sarana/Prasarana Fasilitas Kesehatan',
-    'Penyediaan Sarana Sanitasi, Pengelolaan Limbah & Air Bersih',
-    'Pembayaran Iuran Jaminan Kesehatan',
-    'Kegiatan Koordinasi Pengelolaan DBH CHT',
-    'Kegiatan Pendukung Pengelolaan DBH CHT',
+    'Program Pembinaan Lingkungan Sosial'
   ],
   hukum: [
     'Program Pembinaan Industri',
