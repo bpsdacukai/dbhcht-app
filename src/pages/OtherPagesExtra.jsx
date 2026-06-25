@@ -13,7 +13,7 @@ export function Pagu() {
   const [opds,     setOpds]     = useState([])
   const [paguOpds, setPaguOpds] = useState([])
   const [editing,  setEdit]     = useState(false)
-  const [editOpd,  setEditOpd]  = useState(null)
+  const [editOpd,  setEditOpd]  = useState(null)   // null | { id, isNew }
   const [form,     setForm]     = useState({})
   const [opdForm,  setOpdForm]  = useState({ profile_id:'', bidang:'', program:'', kegiatan:'', pagu_utama:'', bop:'', keterangan:'' })
   const [loading,  setLoading]  = useState(false)
@@ -66,19 +66,20 @@ export function Pagu() {
       bop, keterangan: opdForm.keterangan,
       ditetapkan_oleh: profile?.id
     }
-    // Composite key: 1 OPD bisa punya beberapa kegiatan berbeda
-    const exists = paguOpds.find(p=>
-      p.profile_id===opdForm.profile_id &&
-      p.bidang===opdForm.bidang &&
-      p.program===opdForm.program &&
-      p.kegiatan===opdForm.kegiatan
-    )
-    const { error } = exists
-      ? await supabase.from('pagu_opd').update(payload).eq('id', exists.id)
+    // Gunakan id langsung saat edit agar bisa ubah bidang/program/kegiatan
+    const { error } = editOpd?.id
+      ? await supabase.from('pagu_opd').update(payload).eq('id', editOpd.id)
       : await supabase.from('pagu_opd').insert(payload)
     setLoading(false)
     if (error) { notify('Gagal: '+error.message, 'error'); return }
     notify('Pagu OPD disimpan', 'success'); setEditOpd(null); load()
+  }
+
+  async function deleteOpdPagu(id) {
+    if (!confirm('Hapus data pagu kegiatan ini?')) return
+    const { error } = await supabase.from('pagu_opd').delete().eq('id', id)
+    if (error) { notify('Gagal hapus: '+error.message, 'error'); return }
+    notify('Data pagu dihapus', 'warn'); load()
   }
 
   const tp = Number(form.total_pagu)||0
@@ -152,7 +153,7 @@ export function Pagu() {
         <div className="flex-between mb-2">
           <div className="card-title" style={{ margin:0 }}>🏢 Penetapan Pagu per OPD (TAPD) — TA {tahun} {jenis}</div>
           <button className="btn btn-primary btn-sm"
-            onClick={()=>{ setOpdForm({profile_id:'',pagu_utama:'',bop:'',keterangan:''}); setEditOpd(true) }}>
+            onClick={()=>{ setOpdForm({profile_id:'',bidang:'',program:'',kegiatan:'',pagu_utama:'',bop:'',keterangan:''}); setEditOpd({id:null}) }}>
             + Tetapkan Pagu OPD
           </button>
         </div>
@@ -184,15 +185,18 @@ export function Pagu() {
                   </td>
                   <td className="td-money">{fmtRp((p.pagu_utama||0)+(p.bop||0))}</td>
                   <td className="td-muted">{p.keterangan}</td>
-                  <td>
-                    <button className="btn btn-outline btn-sm" onClick={()=>{
+                  <td style={{ display:'flex', gap:'.3rem' }}>
+                    <button className="btn btn-outline btn-sm" title="Edit" onClick={()=>{
                       setOpdForm({
                         profile_id:p.profile_id, bidang:p.bidang||p.profiles?.bidang||'',
                         program:p.program||'', kegiatan:p.kegiatan||'',
                         pagu_utama:String(p.pagu_utama), bop:String(p.bop), keterangan:p.keterangan||''
                       })
-                      setEditOpd(true)
+                      setEditOpd({id:p.id})
                     }}>✏️</button>
+                    <button className="btn btn-sm" title="Hapus"
+                      style={{ background:'var(--danger)', color:'#fff', border:'none', borderRadius:6, padding:'2px 8px', cursor:'pointer' }}
+                      onClick={()=>deleteOpdPagu(p.id)}>🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -210,19 +214,25 @@ export function Pagu() {
         </div>
       </div>
 
-      {editOpd && (
-        <Modal title="Tetapkan Pagu OPD" onClose={()=>setEditOpd(null)}>
+      {editOpd !== null && (
+        <Modal title={editOpd?.id ? "✏️ Edit Pagu OPD" : "➕ Tetapkan Pagu OPD"} onClose={()=>setEditOpd(null)}>
           {/* OPD */}
           <div className="form-group">
             <label className="form-label">OPD *</label>
-            <select className="form-control" value={opdForm.profile_id}
-              onChange={e=>{
-                const opd = opds.find(o=>o.id===e.target.value)
-                setOpdForm({...opdForm, profile_id:e.target.value, bidang:opd?.bidang||'', program:'', kegiatan:''})
-              }}>
-              <option value="">-- Pilih OPD --</option>
-              {opds.map(o=><option key={o.id} value={o.id}>{o.nama}</option>)}
-            </select>
+            {editOpd?.id ? (
+              <input className="form-control" readOnly
+                value={opds.find(o=>o.id===opdForm.profile_id)?.nama||opdForm.profile_id}
+                style={{ background:'var(--bg3)', color:'var(--text2)' }} />
+            ) : (
+              <select className="form-control" value={opdForm.profile_id}
+                onChange={e=>{
+                  const opd = opds.find(o=>o.id===e.target.value)
+                  setOpdForm({...opdForm, profile_id:e.target.value, bidang:opd?.bidang||'', program:'', kegiatan:''})
+                }}>
+                <option value="">-- Pilih OPD --</option>
+                {opds.map(o=><option key={o.id} value={o.id}>{o.nama}</option>)}
+              </select>
+            )}
           </div>
 
           {/* Bidang — bisa override dari default bidang OPD */}
