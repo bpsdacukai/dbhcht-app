@@ -76,7 +76,7 @@ export default function Realisasi() {
     setForm(f => ({
       ...f,
       program: r.program, kegiatan: r.kegiatan, sub_kegiatan: r.sub_kegiatan,
-      pagu: String(r.pagu||0), bidang_id: r.bidang_id, is_koordinasi: r.is_koordinasi,
+      pagu:String((r.pagu || 0) + (r.pagu_bop || 0)),, bidang_id: r.bidang_id, is_koordinasi: r.is_koordinasi,
     }))
   }
 
