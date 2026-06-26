@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, SEMUA_BIDANG, PROGRAM_BY_BIDANG, fmtRp, maxBop, today } from '../lib/constants.js'
 import { Modal, EmptyRow, DelBtn, PageHeader } from '../components/UI.jsx'
 import { tindakLanjutAsistensi, tindakLanjutRekonsiliasi } from '../lib/ai.js'
-import { CetakAistensi, CetakRekonsiliasi, buildAsistensiHtml, buildRekonsHtml, printDocumentInNewTab, DOC_CSS } from './Laporan.jsx'
+import { CetakAistensi, CetakRekonsiliasi } from './Laporan.jsx'
 
 // ── CSS untuk cetak dokumen BA (hanya area dokumen) ────────────
 const PRINT_DOC_CSS = `
@@ -22,17 +22,9 @@ function injectPrintDocCss() {
 
 // ── Komponen Pratinjau BA (fullscreen overlay untuk cetak) ─────
 function BAPreview({ type, data, kabupaten, onClose }) {
-  const KOTA_BA = kabupaten || 'Kota Batu'
+  useEffect(() => { injectPrintDocCss() }, [])
 
-  function doPrint() {
-    const docHtml = type === 'asistensi'
-      ? buildAsistensiHtml(data, KOTA_BA)
-      : buildRekonsHtml(data, KOTA_BA)
-    const title = type === 'asistensi'
-      ? `Hasil Asistensi — ${data.opd}`
-      : `Hasil Rekonsiliasi — ${data.opd}`
-    printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + docHtml, title)
-  }
+  const doPrint = () => { window.print() }
 
   return (
     <>
@@ -41,8 +33,8 @@ function BAPreview({ type, data, kabupaten, onClose }) {
         position:'fixed', inset:0, background:'rgba(0,0,0,.7)',
         zIndex:400, display:'flex', flexDirection:'column',
       }}>
-        {/* Toolbar */}
-        <div style={{
+        {/* Toolbar — hanya tampil di browser, hilang saat cetak */}
+        <div id="ba-toolbar" style={{
           background:'#1a3a1c', color:'#fff', padding:'10px 16px',
           display:'flex', alignItems:'center', gap:'1rem', flexShrink:0,
         }}>
@@ -53,7 +45,7 @@ function BAPreview({ type, data, kabupaten, onClose }) {
           <button
             onClick={doPrint}
             style={{ background:'#52b788', color:'#fff', border:'none', padding:'6px 16px', borderRadius:5, cursor:'pointer', fontWeight:600 }}>
-            🖨️ Cetak (Tab Baru)
+            🖨️ Cetak
           </button>
           <button
             onClick={onClose}
@@ -61,12 +53,12 @@ function BAPreview({ type, data, kabupaten, onClose }) {
             ✕ Tutup
           </button>
         </div>
-        {/* Dokumen preview */}
+        {/* Dokumen */}
         <div style={{ flex:1, overflow:'auto', background:'#f0f0f0', padding:'1rem' }}>
-          <div style={{ background:'#fff', boxShadow:'0 2px 20px rgba(0,0,0,.25)', maxWidth:820, margin:'0 auto' }}>
+          <div id="ba-print-area" style={{ boxShadow:'0 2px 20px rgba(0,0,0,.25)' }}>
             {type==='asistensi'
-              ? <CetakAistensi data={data} kabupaten={KOTA_BA} />
-              : <CetakRekonsiliasi data={data} kabupaten={KOTA_BA} />
+              ? <CetakAistensi data={data} kabupaten={kabupaten} />
+              : <CetakRekonsiliasi data={data} kabupaten={kabupaten} />
             }
           </div>
         </div>
@@ -117,25 +109,12 @@ export function Asistensi() {
   const [loading, setLoading] = useState(false)
   const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
 
-  // 7 uraian hasil asistensi sesuai format resmi
-  const URAIAN_ASISTENSI = [
-    'Kesesuaian bidang penggunaan DBH CHT',
-    'Kesesuaian indikator dan target',
-    'Kesesuaian komponen belanja',
-    'Kesesuaian dengan PMK terkait DBH CHT',
-    'Kelengkapan dokumen pendukung',
-    'Efisiensi dan efektivitas anggaran',
-    'Catatan lainnya',
-  ]
-
   const EMPTY_FORM = {
     nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
     opd:'', opd_user_id:'', bidang_id:'kesmas',
     program:'', kegiatan:'', sub_kegiatan:'', pagu_usulan:'',
     peserta_sekretariat:[], peserta_opd:[],
-    // hasil_pembahasan disimpan sebagai JSON array 7 elemen, index 0–6
-    hasil_pembahasan: JSON.stringify(['','','','','','','']),
-    catatan:'', tindak_lanjut:'',
+    hasil_pembahasan:'', catatan:'', tindak_lanjut:'',
     kesimpulan:'dapat_ditindaklanjuti', rkp_snapshot:[]
   }
   const [form, setForm] = useState(EMPTY_FORM)
@@ -413,33 +392,16 @@ export function Asistensi() {
             onChange={v=>setForm(f=>({...f,peserta_opd:v}))} />
           <hr className="divider" />
 
-          {/* 7 uraian hasil asistensi — sesuai format resmi C. HASIL ASISTENSI */}
-          <div style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:6, padding:'.75rem', marginBottom:'.75rem' }}>
-            <div style={{ fontWeight:600, fontSize:'.85rem', marginBottom:'.6rem', color:'var(--text)' }}>
-              C. Hasil Asistensi
-              <span style={{ fontWeight:400, fontSize:'.75rem', color:'var(--text2)', marginLeft:'.5rem' }}>
-                (Hasil Pembahasan / Catatan untuk setiap uraian — kosongkan jika tidak ada catatan)
-              </span>
-            </div>
-            {URAIAN_ASISTENSI.map((uraian, i) => {
-              const vals = (() => { try { return JSON.parse(form.hasil_pembahasan) } catch { return ['','','','','','',''] } })()
-              return (
-                <div key={i} style={{ display:'flex', gap:'.6rem', marginBottom:'.5rem', alignItems:'flex-start' }}>
-                  <div style={{ width:28, height:28, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'.8rem', fontWeight:600, flexShrink:0, marginTop:1 }}>{i+1}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:'.8rem', color:'var(--text2)', marginBottom:2 }}>{uraian}</div>
-                    <input className="form-control" style={{ fontSize:'.82rem' }}
-                      value={vals[i] || ''}
-                      placeholder={`Hasil pembahasan / catatan poin ${i+1}...`}
-                      onChange={e => {
-                        const arr = (() => { try { return JSON.parse(form.hasil_pembahasan) } catch { return ['','','','','','',''] } })()
-                        arr[i] = e.target.value
-                        setForm({...form, hasil_pembahasan: JSON.stringify(arr)})
-                      }} />
-                  </div>
-                </div>
-              )
-            })}
+          <div className="form-group">
+            <label className="form-label">Hasil Pembahasan / Uraian Asistensi</label>
+            <textarea className="form-control" rows={4} value={form.hasil_pembahasan}
+              onChange={e=>setForm({...form,hasil_pembahasan:e.target.value})}
+              placeholder="Uraikan hasil pembahasan asistensi secara lengkap..." />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Catatan</label>
+            <textarea className="form-control" rows={2} value={form.catatan}
+              onChange={e=>setForm({...form,catatan:e.target.value})} />
           </div>
           <div className="form-group">
             <label className="form-label">Kesimpulan</label>

@@ -15,7 +15,6 @@ export default function App() {
   const { user, profile, loading } = useAuth()
   const { dark } = useApp()
   const [page, setPage] = useState('dashboard')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
@@ -51,7 +50,7 @@ export default function App() {
     <div className="app-shell">
       <Topbar />
       <div className="layout">
-        <Sidebar page={page} onNav={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(v => !v)} />
+        <Sidebar page={page} onNav={setPage} />
         <main className="main-content">
           {pages[page] || <Dashboard />}
         </main>

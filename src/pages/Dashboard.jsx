@@ -24,7 +24,7 @@ export default function Dashboard() {
     const [{ data: p }, { data: r }, { data: rl }, { data: a }, { data: op }] = await Promise.all([
       supabase.from('pagu_alokasi').select('*').eq('tahun', tahun).eq('jenis', jenis).maybeSingle(),
       supabase.from('rkp_dbhcht').select('bidang_id,pagu,pagu_bop,is_koordinasi').eq('tahun', tahun).eq('jenis', jenis),
-      supabase.from('realisasi_dbhcht').select('bidang_id,pagu,realisasi_keu,realisasi_bop,realisasi_fisik,is_koordinasi,triwulan').eq('tahun', tahun),
+      supabase.from('realisasi_dbhcht').select('bidang_id,pagu,realisasi_keu,realisasi_fisik,is_koordinasi,triwulan').eq('tahun', tahun),
       supabase.from('asistensi_dbhcht').select('id').eq('tahun', tahun),
       supabase.from('profiles').select('id').eq('role', 'opd').eq('aktif', true),
     ])
@@ -35,11 +35,11 @@ export default function Dashboard() {
 
   const tp      = pagu?.total_pagu || 0
   const sumRkp  = (bid, isK) => rkpData.filter(r => isK ? r.is_koordinasi : r.bidang_id === bid && !r.is_koordinasi).reduce((s,r)=>s+(r.pagu||0)+(r.pagu_bop||0),0)
-  const sumReal = (bid, isK) => realData.filter(r => isK ? r.is_koordinasi : r.bidang_id === bid && !r.is_koordinasi).reduce((s,r)=>s+(r.realisasi_keu||0)+(r.realisasi_bop||0),0)
+  const sumReal = (bid, isK) => realData.filter(r => isK ? r.is_koordinasi : r.bidang_id === bid && !r.is_koordinasi).reduce((s,r)=>s+(r.realisasi_keu||0),0)
   const totalRkpAll  = rkpData.reduce((s,r)=>s+(r.pagu||0)+(r.pagu_bop||0),0)
-  const totalReal    = realData.reduce((s,r)=>s+(r.realisasi_keu||0)+(r.realisasi_bop||0),0)
+  const totalReal    = realData.reduce((s,r)=>s+(r.realisasi_keu||0),0)
   const pctReal      = tp > 0 ? (totalReal/tp*100) : 0
-  const realByTw = tw => realData.filter(r=>r.triwulan===tw).reduce((s,r)=>s+(r.realisasi_keu||0)+(r.realisasi_bop||0),0)
+  const realByTw = tw => realData.filter(r=>r.triwulan===tw).reduce((s,r)=>s+(r.realisasi_keu||0),0)
   const sem1 = realByTw('I') + realByTw('II')
 
   async function doAI() {

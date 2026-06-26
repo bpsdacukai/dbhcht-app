@@ -44,7 +44,7 @@ export function Topbar() {
   )
 }
 
-export function Sidebar({ page, onNav, open = true, onToggle }) {
+export function Sidebar({ page, onNav }) {
   const { profile } = useAuth()
   if (!profile) return null
   const isSkrt = profile.role === 'sekretariat'
@@ -71,27 +71,21 @@ export function Sidebar({ page, onNav, open = true, onToggle }) {
   ]
 
   return (
-    <div className={`sidebar${open ? '' : ' sidebar-collapsed'}`}>
-      {/* Tombol toggle sembunyi/tampilkan */}
-      <button
-        className="sidebar-toggle-btn"
-        onClick={onToggle}
-        title={open ? 'Sembunyikan sidebar' : 'Tampilkan sidebar'}
-      >
-        {open ? '◀' : '▶'}
-      </button>
-      {open && <div className="sidebar-user">
+    <div className="sidebar">
+      <div className="sidebar-user">
         <strong>{profile.nama?.split(' ').slice(0,3).join(' ')}</strong>
         {profile.role==='sekretariat'?'Sekretariat Tim':'OPD Pengguna'}
-      </div>}
-      {open && menus.map((m,i) => {
+      </div>
+      {menus.map((m,i) => {
         if (m.sekOnly && !isSkrt) return null
         if (m.section) {
+          // Sembunyikan section header jika tidak ada item yang tampil
           return <div key={i} className="nav-section">{m.section}</div>
         }
         return (
-          <div key={m.id} className={`nav-item ${page===m.id?'active':''}`} onClick={()=>{ onNav(m.id) }}>
+          <div key={m.id} className={`nav-item ${page===m.id?'active':''}`} onClick={()=>onNav(m.id)}>
             <span>{m.icon}</span> {m.label}
+            {/* Badge "Baru" untuk OPD di Asistensi/Rekonsiliasi supaya tahu ada notifikasi */}
             {!isSkrt && (m.id==='asistensi'||m.id==='rekonsiliasi') && (
               <span style={{
                 marginLeft:'auto', fontSize:'.65rem', background:'#dbeafe',

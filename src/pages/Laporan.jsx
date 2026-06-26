@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -153,27 +154,15 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
   const nomorDoc = fmtNomorAsist(data.nomor_ba, data.tanggal)
 
   // C. Hasil Asistensi — 7 poin
-  // hasil_pembahasan disimpan sebagai JSON array 7 elemen
-  // Fallback: jika string biasa (data lama), masukkan ke poin 1
-  const hasilArr = (() => {
-    try {
-      const parsed = JSON.parse(data.hasil_pembahasan || '[]')
-      if (Array.isArray(parsed) && parsed.length === 7) return parsed
-      // Data lama (string biasa) — taruh di poin 1
-      return [data.hasil_pembahasan || '', '', '', data.catatan || '', '', '', '']
-    } catch {
-      return [data.hasil_pembahasan || '', '', '', data.catatan || '', '', '', '']
-    }
-  })()
-
+  // hasil_pembahasan → poin 1, catatan → poin 4, tindak lanjut KOSONG
   const hasilItems = [
-    { no: 1, uraian: 'Kesesuaian bidang penggunaan DBH CHT',  catatan: hasilArr[0] || '' },
-    { no: 2, uraian: 'Kesesuaian indikator dan target',        catatan: hasilArr[1] || '' },
-    { no: 3, uraian: 'Kesesuaian komponen belanja',            catatan: hasilArr[2] || '' },
-    { no: 4, uraian: 'Kesesuaian dengan PMK terkait DBH CHT', catatan: hasilArr[3] || '' },
-    { no: 5, uraian: 'Kelengkapan dokumen pendukung',          catatan: hasilArr[4] || '' },
-    { no: 6, uraian: 'Efisiensi dan efektivitas anggaran',     catatan: hasilArr[5] || '' },
-    { no: 7, uraian: 'Catatan lainnya',                        catatan: hasilArr[6] || '' },
+    { no: 1, uraian: 'Kesesuaian bidang penggunaan DBH CHT',    catatan: data.hasil_pembahasan || '' },
+    { no: 2, uraian: 'Kesesuaian indikator dan target',          catatan: '' },
+    { no: 3, uraian: 'Kesesuaian komponen belanja',              catatan: '' },
+    { no: 4, uraian: 'Kesesuaian dengan PMK terkait DBH CHT',   catatan: data.catatan || '' },
+    { no: 5, uraian: 'Kelengkapan dokumen pendukung',            catatan: '' },
+    { no: 6, uraian: 'Efisiensi dan efektivitas anggaran',       catatan: '' },
+    { no: 7, uraian: 'Catatan lainnya',                          catatan: '' },
   ]
 
   return (
@@ -527,266 +516,7 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  HTML STRING BUILDERS — untuk cetak via window.open (tab baru)
-//  Menghasilkan HTML murni tanpa React, reliable di semua browser
-// ══════════════════════════════════════════════════════════════
-
-export const DOC_CSS = `
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #000; line-height: 1.5; }
-  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; }
-  th { border: 1px solid #000; padding: 3px 6px; background: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; word-wrap: break-word; }
-  td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; word-wrap: break-word; }
-  .center { text-align: center; }
-  .right { text-align: right; }
-  .bold { font-weight: bold; }
-  .judul { text-align: center; margin-bottom: 14px; line-height: 1.6; }
-  .judul div { font-weight: bold; font-size: 13px; }
-  p { margin-bottom: 10px; text-align: justify; }
-  .section-title { font-weight: bold; margin: 8px 0 4px; }
-
-  /* ── Portrait (BA Asistensi, BA Rekonsiliasi, Rekap) ── */
-  .wrap { padding: 24px 28px; max-width: 794px; margin: 0 auto; }
-
-  /* ── Landscape (RKP, Realisasi) ── */
-  .wrap-wide { padding: 20px 24px; max-width: 1100px; margin: 0 auto; }
-  .wrap-wide table { font-size: 9px; }
-  .wrap-wide th, .wrap-wide td { padding: 2px 4px; }
-
-  .tanda-tangan { margin-top: 20px; }
-  .mengetahui { text-align: center; margin-top: 16px; }
-  .mengetahui .ttd-line { margin-top: 50px; }
-
-  /* ── Default: Portrait ── */
-  @page { size: A4 portrait; margin: 12mm 10mm; }
-
-  /* ── Landscape override saat body punya class landscape ── */
-  body.landscape { font-size: 10px; }
-  @media print {
-    .no-print { display: none !important; }
-    body { margin: 0; }
-    table { page-break-inside: auto; }
-    tr { page-break-inside: avoid; page-break-after: auto; }
-  }
-  body.landscape @page { size: A4 landscape; margin: 10mm 12mm; }
-`
-
-/* DOC_CSS khusus landscape — @page harus di top-level, tidak bisa di-nest */
-export const DOC_CSS_LANDSCAPE = DOC_CSS + `
-  @page { size: A4 landscape; margin: 10mm 12mm; }
-`
-
-function fmtN(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n||0)) }
-function fmtHariH(tgl) { if (!tgl) return '__________'; return new Date(tgl).toLocaleDateString('id-ID', {weekday:'long'}) }
-function fmtTglH(tgl) { if (!tgl) return '__________ bulan __________ tahun __________'; return new Date(tgl).toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'}) }
-function getYearH(tgl) { return tgl ? new Date(tgl).getFullYear() : new Date().getFullYear() }
-function fmtNomorAsistH(noBA, tanggal) { const y=getYearH(tanggal); const u=noBA?String(noBA).padStart(3,'0'):'___'; return `027/${u}/HA-RKP/35.79.121/${y}` }
-function fmtNomorRekonH(noBA, tanggal)  { const y=getYearH(tanggal); const u=noBA?String(noBA).padStart(3,'0'):'___'; return `027/${u}/HA-Rekon/35.79.121/${y}` }
-
-function buildPesertaTableH(judul, peserta) {
-  const list = (peserta||[]).filter(p=>p.nama)
-  const rows = list.length>0?list:[{nama:'',jabatan:''}]
-  return `<div style="margin-bottom:2px">${judul}</div>
-  <table style="margin-bottom:8px">
-    <thead><tr><th style="width:30px">No</th><th>Nama</th><th style="width:130px">NIP</th></tr></thead>
-    <tbody>${rows.map((p,i)=>`<tr><td class="center">${i+1}</td><td style="height:20px">${p.nama||''}</td><td>${p.jabatan||''}</td></tr>`).join('')}</tbody>
-  </table>`
-}
-
-function buildTandaTanganH(ps, po, kota) {
-  const sekList = (ps||[]).filter(p=>p.nama)
-  const opdList = (po||[]).filter(p=>p.nama)
-  const all = [
-    ...sekList.map(p=>({nama:p.nama,nip:p.jabatan,unit:'Sekretariat Tim Koordinasi'})),
-    ...opdList.map(p=>({nama:p.nama,nip:p.jabatan,unit:'Perangkat Daerah'})),
-  ]
-  const rows = Math.max(all.length, 3)
-  return `<div class="tanda-tangan">
-  <table>
-    <thead><tr><th style="width:30px">No</th><th>Nama</th><th style="width:115px">NIP</th><th style="width:150px">OPD / Sekretariat</th><th style="width:110px">Tanda Tangan</th></tr></thead>
-    <tbody>${Array.from({length:rows}).map((_,i)=>{
-      const p=all[i]||{}
-      return `<tr><td class="center">${i+1}</td><td style="height:34px">${p.nama||''}</td><td>${p.nip||''}</td><td>${p.unit||''}</td><td></td></tr>`
-    }).join('')}</tbody>
-  </table>
-  <div class="mengetahui">
-    <div>Mengetahui,</div>
-    <div>a.n. Ketua Tim Koordinasi Penggunaan DBH CHT</div>
-    <div>${kota}</div>
-    <div>Sekretaris</div>
-    <div class="ttd-line">(__________________________)</div>
-  </div>
-  </div>`
-}
-
-export function buildAsistensiHtml(data, kota) {
-  const tahun = getYearH(data.tanggal)
-  const nomorDoc = fmtNomorAsistH(data.nomor_ba, data.tanggal)
-  const ps = data.peserta_sekretariat||[]
-  const po = data.peserta_opd||[]
-  const snap = data.rkp_snapshot||[]
-
-  // Parse 7 uraian
-  const hasilArr = (() => {
-    try { const p=JSON.parse(data.hasil_pembahasan||'[]'); if(Array.isArray(p)&&p.length===7)return p }
-    catch {}
-    return [data.hasil_pembahasan||'','','',data.catatan||'','','','']
-  })()
-
-  const URAIAN = [
-    'Kesesuaian bidang penggunaan DBH CHT',
-    'Kesesuaian indikator dan target',
-    'Kesesuaian komponen belanja',
-    'Kesesuaian dengan PMK terkait DBH CHT',
-    'Kelengkapan dokumen pendukung',
-    'Efisiensi dan efektivitas anggaran',
-    'Catatan lainnya',
-  ]
-
-  const bidangLabel = (() => {
-    const map = {kesmas:'Bidang Kesejahteraan Masyarakat',kesehatan:'Bidang Kesehatan',hukum:'Bidang Penegakan Hukum',koordinasi:'Kegiatan Koordinasi Pengelolaan DBH CHT'}
-    return map[data.bidang_id]||data.bidang_id||''
-  })()
-
-  const snapHtml = snap.length > 0 ? `
-  <div style="font-style:italic;font-size:10px;margin-bottom:3px">Rincian Kegiatan yang Diasistensikan:</div>
-  <table style="margin-bottom:10px">
-    <thead><tr><th style="width:25px">No</th><th>Program / Kegiatan / Sub Kegiatan</th><th>Kode Rekening</th><th style="width:35px">Vol</th><th style="width:35px">Sat</th><th style="width:90px">Pagu Utama (Rp)</th><th style="width:75px">BOP (Rp)</th><th style="width:90px">Total (Rp)</th></tr></thead>
-    <tbody>
-      ${snap.map((r,i)=>`<tr>
-        <td class="center">${i+1}</td>
-        <td><strong>${r.program||''}</strong>${r.kegiatan?`<br><span style="font-size:9px">${r.kegiatan}</span>`:''}${r.sub_kegiatan?`<br><span style="font-size:9px">${r.sub_kegiatan}</span>`:''}</td>
-        <td style="font-size:9px">${r.kode_rekening||''}</td>
-        <td class="center">${r.volume||''}</td>
-        <td class="center">${r.satuan||''}</td>
-        <td class="right">${fmtN(r.pagu||0)}</td>
-        <td class="right">${fmtN(r.pagu_bop||0)}</td>
-        <td class="right bold">${fmtN((r.pagu||0)+(r.pagu_bop||0))}</td>
-      </tr>`).join('')}
-      <tr style="background:#f5f5f5">
-        <td colspan="5" class="right bold">JUMLAH</td>
-        <td class="right bold">${fmtN(snap.reduce((s,r)=>s+(r.pagu||0),0))}</td>
-        <td class="right bold">${fmtN(snap.reduce((s,r)=>s+(r.pagu_bop||0),0))}</td>
-        <td class="right bold">${fmtN(snap.reduce((s,r)=>s+(r.pagu||0)+(r.pagu_bop||0),0))}</td>
-      </tr>
-    </tbody>
-  </table>` : ''
-
-  return `<div class="wrap">
-  <div class="judul">
-    <div>HASIL ASISTENSI RANCANGAN KEGIATAN DAN PENGANGGARAN</div>
-    <div>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
-    <div>TAHUN ANGGARAN ${tahun}</div>
-    <div style="font-weight:normal;margin-top:6px">Nomor : ${nomorDoc}</div>
-  </div>
-
-  <p>Pada hari ini <strong>${fmtHariH(data.tanggal)}</strong> tanggal <strong>${fmtTglH(data.tanggal)}</strong> bertempat di <strong>${data.tempat||'____________________________'}</strong>, telah dilaksanakan asistensi Rancangan Kegiatan dan Penganggaran Dana Bagi Hasil Cukai Hasil Tembakau (RKP DBH CHT) antara Sekretariat Tim Koordinasi Penggunaan DBH CHT dengan perangkat daerah pengguna DBH CHT sebagai berikut:</p>
-
-  <div class="section-title">A. IDENTITAS PERANGKAT DAERAH</div>
-  <table style="margin-bottom:12px">
-    <tbody>
-      <tr><td style="width:28px;text-align:center">1</td><td style="width:200px">Nama Perangkat Daerah</td><td>${data.opd||''}</td></tr>
-      <tr><td class="center">2</td><td>Program</td><td>${data.program||''}</td></tr>
-      <tr><td class="center">3</td><td>Kegiatan</td><td>${data.kegiatan||''}</td></tr>
-      <tr><td class="center">4</td><td>Sub Kegiatan</td><td>${data.sub_kegiatan||''}</td></tr>
-      <tr><td class="center">5</td><td>Bidang Penggunaan DBH CHT</td><td>${bidangLabel}</td></tr>
-      <tr><td class="center">6</td><td>Pagu Anggaran Usulan</td><td>Rp. ${fmtN(data.pagu_usulan||0)}</td></tr>
-      <tr><td class="center">7</td><td>Sumber Pendanaan</td><td>DBH CHT Tahun Anggaran ${tahun}</td></tr>
-    </tbody>
-  </table>
-
-  ${snapHtml}
-
-  <div class="section-title">B. PELAKSANA ASISTENSI</div>
-  ${buildPesertaTableH('1. Sekretariat Tim Koordinasi Penggunaan DBH CHT', ps)}
-  ${buildPesertaTableH('2. Perangkat Daerah Pengguna', po)}
-
-  <div class="section-title">C. HASIL ASISTENSI</div>
-  <table style="margin-bottom:12px">
-    <thead><tr><th style="width:28px">No</th><th>Uraian yang Diasistensikan</th><th style="width:210px">Hasil Pembahasan / Catatan</th><th style="width:130px">Tindak Lanjut</th></tr></thead>
-    <tbody>
-      ${URAIAN.map((u,i)=>`<tr><td class="center">${i+1}</td><td>${u}</td><td style="min-height:22px">${hasilArr[i]||''}</td><td style="min-height:22px"></td></tr>`).join('')}
-    </tbody>
-  </table>
-
-  <div class="section-title">D. KESIMPULAN</div>
-  <p>Berdasarkan hasil asistensi, Rancangan Kegiatan dan Penganggaran DBH CHT pada Perangkat Daerah <strong>${data.opd||'______________________________'}</strong>:</p>
-  <p>${data.kesimpulan==='dapat_ditindaklanjuti'?'☑':'☐'} Dapat ditindaklanjuti pada tahapan penganggaran berikutnya.</p>
-  <p>${data.kesimpulan==='perlu_perbaikan'?'☑':'☐'} Perlu dilakukan perbaikan/penyesuaian sebagaimana hasil asistensi.</p>
-  <p>Demikian Berita Acara Hasil Asistensi ini dibuat untuk digunakan sebagaimana mestinya.</p>
-
-  ${buildTandaTanganH(ps, po, kota)}
-  </div>`
-}
-
-export function buildRekonsHtml(data, kota) {
-  const tahun = getYearH(data.tanggal)
-  const nomorDoc = fmtNomorRekonH(data.nomor_ba, data.tanggal)
-  const ps = data.peserta_sekretariat||[]
-  const po = data.peserta_opd||[]
-  const snap = data.realisasi_snapshot||[]
-
-  const snapRows = snap.length > 0
-    ? snap.map((r,i)=>`<tr><td class="center">${i+1}</td><td><strong>${r.program||''}</strong>${r.kegiatan?`<br>${r.kegiatan}`:''}</td><td class="right">${fmtN(r.pagu||0)}</td><td class="right">${fmtN(r.realisasi_keu||0)}</td><td class="center">${r.realisasi_fisik||0}%</td><td></td></tr>`).join('')
-    : `<tr><td class="center">1</td><td><strong>Program</strong><br>${data.program||''}</td><td class="right">${fmtN(data.pagu||0)}</td><td class="right">${fmtN(data.realisasi_keu||0)}</td><td class="center">${data.realisasi_fisik||0}%</td><td></td></tr>
-       <tr><td class="center">2</td><td><strong>Kegiatan</strong><br>${data.kegiatan||''}</td><td></td><td></td><td></td><td></td></tr>
-       <tr><td class="center">3</td><td><strong>Sub Kegiatan</strong><br>${data.sub_kegiatan||''}</td><td></td><td></td><td></td><td></td></tr>`
-
-  return `<div class="wrap">
-  <div class="judul">
-    <div>HASIL REKONSILIASI REALISASI KEGIATAN DAN ANGGARAN</div>
-    <div>PENGGUNAAN DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
-    <div>TRIWULAN ${data.triwulan} TAHUN ANGGARAN ${tahun}</div>
-    <div style="font-weight:normal;margin-top:6px">Nomor : ${nomorDoc}</div>
-  </div>
-
-  <p>Pada hari ini <strong>${fmtHariH(data.tanggal)}</strong> tanggal <strong>${fmtTglH(data.tanggal)}</strong> bertempat di <strong>${data.tempat||'____________________________'}</strong>, telah dilaksanakan rekonsiliasi realisasi kegiatan dan anggaran penggunaan Dana Bagi Hasil Cukai Hasil Tembakau (DBH CHT) Triwulan <strong>${data.triwulan}</strong> Tahun Anggaran <strong>${tahun}</strong> antara Sekretariat Tim Koordinasi Penggunaan DBH CHT dengan Perangkat Daerah pengguna DBH CHT.</p>
-
-  <div class="section-title">A. IDENTITAS PERANGKAT DAERAH</div>
-  <table style="margin-bottom:12px">
-    <tbody>
-      <tr><td style="width:28px;text-align:center">1</td><td style="width:200px">Nama Perangkat Daerah</td><td>${data.opd||''}</td></tr>
-      <tr><td class="center">2</td><td>Program</td><td>${data.program||''}</td></tr>
-      <tr><td class="center">3</td><td>Kegiatan</td><td>${data.kegiatan||''}</td></tr>
-      <tr><td class="center">4</td><td>Sub Kegiatan</td><td></td></tr>
-      <tr><td class="center">5</td><td>Bidang Penggunaan DBH CHT</td><td></td></tr>
-      <tr><td class="center">6</td><td>Pagu Anggaran</td><td>Rp. ${fmtN(data.pagu||0)}</td></tr>
-      <tr><td class="center">7</td><td>Periode Rekonsiliasi</td><td>Triwulan ${data.triwulan} Tahun ${tahun}</td></tr>
-    </tbody>
-  </table>
-
-  <div class="section-title">B. PELAKSANA REKONSILIASI</div>
-  ${buildPesertaTableH('1. Sekretariat Tim Koordinasi Penggunaan DBH CHT', ps)}
-  ${buildPesertaTableH('2. Perangkat Daerah Pengguna', po)}
-
-  <div class="section-title">C. HASIL REKONSILIASI REALISASI</div>
-  <table style="margin-bottom:12px">
-    <thead><tr><th style="width:28px">No</th><th>Uraian</th><th style="width:95px">Anggaran (Rp)</th><th style="width:95px">Realisasi Keuangan (Rp)</th><th style="width:60px">Realisasi Fisik (%)</th><th style="width:110px">Keterangan</th></tr></thead>
-    <tbody>${snapRows}</tbody>
-  </table>
-
-  <div class="section-title">D. PERMASALAHAN DAN TINDAK LANJUT</div>
-  <table style="margin-bottom:12px">
-    <thead><tr><th style="width:28px">No</th><th>Permasalahan/Hambatan</th><th style="width:155px">Tindak Lanjut</th><th style="width:110px">Penanggung Jawab</th><th style="width:90px">Target Penyelesaian</th></tr></thead>
-    <tbody>
-      <tr><td class="center">1</td><td style="min-height:30px">${data.permasalahan||''}</td><td style="min-height:30px"></td><td>${data.penanggung_jawab||''}</td><td></td></tr>
-      <tr><td class="center">2</td><td style="height:26px"></td><td></td><td></td><td></td></tr>
-    </tbody>
-  </table>
-
-  <div class="section-title">E. KESIMPULAN</div>
-  <p>Berdasarkan hasil rekonsiliasi Triwulan <strong>${data.triwulan}</strong> Tahun Anggaran <strong>${tahun}</strong>, realisasi penggunaan DBH CHT pada Perangkat Daerah <strong>${data.opd||'______________________________'}</strong> telah:</p>
-  <p>${data.kesimpulan==='sesuai'?'☑':'☐'} Sesuai dengan ketentuan penggunaan DBH CHT.</p>
-  <p>${data.kesimpulan==='perlu_perbaikan'?'☑':'☐'} Memerlukan perbaikan dan tindak lanjut sebagaimana hasil rekonsiliasi.</p>
-  <p>Demikian Berita Acara Hasil Rekonsiliasi ini dibuat untuk digunakan sebagaimana mestinya.</p>
-
-  ${buildTandaTanganH(ps, po, kota)}
-  </div>`
-}
-
-// ══════════════════════════════════════════════════════════════
 //  REKAP ASISTENSI
-
 // ══════════════════════════════════════════════════════════════
 export function RekapAisistensi({ rows = [], tahun, kabupaten = KOTA }) {
   return (
@@ -927,7 +657,7 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
   const totalAll = rows.reduce((s, r) => s + (r.pagu || 0) + (r.pagu_bop || 0), 0)
   return (
-    <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
+    <div style={{ ...S.doc, maxWidth: 1050 }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>RENCANA KEGIATAN DAN PENGANGGARAN (RKP)</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
@@ -936,24 +666,17 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
       </div>
       <table style={{ ...S.tbl, fontSize: 9 }}>
         <thead>
-          {/* Baris 1: label kolom */}
           <tr>
-            <th style={{ ...S.th, width: 28 }}>No.</th>
-            <th style={S.th}>Bidang, Program, dan Kegiatan</th>
-            <th style={S.th}>Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th style={S.th}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
-            <th style={{ ...S.th, width: 38 }}>Vol</th>
-            <th style={{ ...S.th, width: 38 }}>Sat</th>
-            <th style={{ ...S.th, width: 85 }}>Pagu Kegiatan (Rp)</th>
+            <th style={{ ...S.th, width: 28 }}>(1)<br />No.</th>
+            <th style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
+            <th style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
+            <th style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
+            <th style={{ ...S.th, width: 38 }}>(5)<br />Vol</th>
+            <th style={{ ...S.th, width: 38 }}>(6)<br />Sat</th>
+            <th style={{ ...S.th, width: 85 }}>(7)<br />Pagu Kegiatan (Rp)</th>
             <th style={{ ...S.th, width: 72 }}>BOP ≤10% (Rp)</th>
             <th style={{ ...S.th, width: 85 }}>Total (Rp)</th>
-            <th style={S.th}>Ket.</th>
-          </tr>
-          {/* Baris 2: nomor urut kolom */}
-          <tr>
-            {['(1)','(2)','(3)','(4)','(5)','(6)','(7)','(8)','(9)','(10)'].map(n => (
-              <th key={n} style={{ ...S.th, background: '#b8cce4', fontWeight: 'bold', fontSize: 9, padding: '2px 4px' }}>{n}</th>
-            ))}
+            <th style={S.th}>(8)<br />Ket.</th>
           </tr>
         </thead>
         <tbody>
@@ -1031,55 +754,15 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
 // ══════════════════════════════════════════════════════════════
 //  LAPORAN REALISASI  (triwulan, semester I, semester II)
 // ══════════════════════════════════════════════════════════════
-export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpRows = [] }) {
-  // Buat lookup pagu (utama) dan pagu_bop dari RKP berdasarkan key unik
-  // Pagu kegiatan = pagu RKP + BOP RKP (sesuai data hasil input Penyusunan RKP)
-  const rkpMap = {}   // key -> { pagu, pagu_bop, ...fullRow }
-  // Key menyertakan created_by agar pagu tiap OPD tidak saling timpa
-  const makeRkpKey = (r) =>
-    (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
-  for (const r of rkpRows) {
-    const key = makeRkpKey(r)
-    if (!rkpMap[key]) rkpMap[key] = r
-  }
-
-  // Gabungkan rows realisasi dengan baris RKP yang belum ada realisasinya
-  // agar semua kegiatan dari RKP tampil (dengan realisasi 0 jika belum ada data)
-  const makeRealKey = (r) =>
-    (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
-  const realKeySet = new Set(rows.map(r => makeRealKey(r)))
-  const rkpOnlyRows = Object.values(rkpMap)
-    .filter(r => !realKeySet.has(makeRkpKey(r)))
-    .map(r => ({
-      ...r,
-      realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0,
-      target_output: r.target_output || '',
-      keterangan: '',
-    }))
-
-  // allRows = realisasi yang ada + baris RKP yang belum ada realisasinya
-  const allRows = [...rows, ...rkpOnlyRows]
-
-  // Helper: ambil pagu utama dari RKP (fallback ke field r.pagu jika tidak ada di rkpMap)
-  const getRkpPagu = (r) => (rkpMap[makeRkpKey(r)]?.pagu) ?? (r.pagu || 0)
-  // Helper: ambil pagu_bop dari RKP
-  const getBop     = (r) => (rkpMap[makeRkpKey(r)]?.pagu_bop) || 0
-  // Kolom (7a) = pagu kegiatan dari RKP  |  Kolom (7b) = BOP dari RKP
-  const getPaguReal  = (r) => getRkpPagu(r)
-  const getPaguBop   = (r) => getBop(r)
-  // Kolom (7) total = pagu + BOP
-  const getPaguTotal = (r) => getRkpPagu(r) + getBop(r)
-  // Kolom (9) = realisasi_keu + realisasi_bop
-  const getRealTotal = (r) => (r.realisasi_keu || 0) + (r.realisasi_bop || 0)
-
-  const koorRows   = allRows.filter(r => r.is_koordinasi)
-  const normalRows = allRows.filter(r => !r.is_koordinasi)
+export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
+  const koorRows   = rows.filter(r => r.is_koordinasi)
+  const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
-  const totalPagu = allRows.reduce((s, r) => s + getPaguTotal(r), 0)
-  const totalReal = allRows.reduce((s, r) => s + getRealTotal(r), 0)
+  const totalPagu = rows.reduce((s, r) => s + (r.pagu || 0), 0)
+  const totalReal = rows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
   return (
-    <div style={{ ...S.doc, maxWidth: 1100, padding: '20px 24px' }}>
+    <div style={{ ...S.doc, maxWidth: 1100 }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>LAPORAN REALISASI PENGGUNAAN</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
@@ -1088,33 +771,25 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
       </div>
       <table style={{ ...S.tbl, fontSize: 9 }}>
         <thead>
-          {/* Baris 1: label kolom */}
           <tr>
-            <th style={{ ...S.th, width: 28 }}>No</th>
-            <th style={S.th}>Bidang, Program, dan Kegiatan</th>
-            <th style={S.th}>Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th style={S.th}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
-            <th style={{ ...S.th, width: 32 }}>Vol</th>
-            <th style={{ ...S.th, width: 32 }}>Sat</th>
-            <th style={{ ...S.th, width: 82 }}>Pagu Kegiatan (Rp)</th>
-            <th style={{ ...S.th, width: 68 }}>BOP ≤10% (Rp)</th>
-            <th style={{ ...S.th, width: 80 }}>Realisasi Output</th>
-            <th style={{ ...S.th, width: 82 }}>Realisasi Dana (Rp)</th>
-            <th style={{ ...S.th, width: 50 }}>Real. Fisik (%)</th>
+            <th style={{ ...S.th, width: 28 }}>(1)<br />No</th>
+            <th style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
+            <th style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
+            <th style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
+            <th style={{ ...S.th, width: 35 }}>(5)<br />Vol</th>
+            <th style={{ ...S.th, width: 35 }}>(6)<br />Sat</th>
+            <th style={{ ...S.th, width: 82 }}>(7)<br />Pagu Kegiatan (Rp)</th>
+            <th style={{ ...S.th, width: 72 }}>(8)<br />Rencana Output</th>
+            <th style={{ ...S.th, width: 82 }}>(9)<br />Realisasi Dana (Rp)</th>
+            <th style={{ ...S.th, width: 55 }}>(10)<br />Realisasi Fisik (%)</th>
             <th style={S.th}>Ket</th>
-          </tr>
-          {/* Baris 2: nomor urut kolom */}
-          <tr>
-            {['(1)','(2)','(3)','(4)','(5)','(6)','(7)','(8)','(9)','(10)','(11)','(12)'].map(n => (
-              <th key={n} style={{ ...S.th, background: '#b8cce4', fontWeight: 'bold', fontSize: 9, padding: '2px 4px' }}>{n}</th>
-            ))}
           </tr>
         </thead>
         <tbody>
           {BIDANG.map((b, bi) => {
             const bRows  = byBidang[b.id] || []
-            const bPagu  = bRows.reduce((s, r) => s + getPaguTotal(r), 0)
-            const bReal  = bRows.reduce((s, r) => s + getRealTotal(r), 0)
+            const bPagu  = bRows.reduce((s, r) => s + (r.pagu || 0), 0)
+            const bReal  = bRows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
             return [
               <tr key={'h-' + b.id} style={{ background: '#c6e0b4' }}>
                 <td style={{ ...S.td, ...S.bold, ...S.center }}>{String.fromCharCode(65 + bi)}.</td>
@@ -1128,21 +803,19 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
                   <td style={S.td}>{r.kode_rekening || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguReal(r))}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguBop(r))}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
                   <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
+                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
                   <td style={S.td}>{r.keterangan || ''}</td>
                 </tr>
               )),
               bRows.length === 0 ? (
-                <tr key={'e-' + b.id}><td colSpan={12} style={{ ...S.td, ...S.center, color: '#999', fontStyle: 'italic' }}>—</td></tr>
+                <tr key={'e-' + b.id}><td colSpan={11} style={{ ...S.td, ...S.center, color: '#999', fontStyle: 'italic' }}>—</td></tr>
               ) : null,
               <tr key={'t-' + b.id} style={{ background: '#e2efda', fontWeight: 'bold' }}>
                 <td colSpan={6} style={{ ...S.td, ...S.right }}>Total {b.label}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(bRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(bRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bPagu)}</td>
                 <td style={S.td} />
                 <td style={{ ...S.td, ...S.right }}>{fmt(bReal)}</td>
                 <td style={{ ...S.td, ...S.center }}>{bPagu > 0 ? ((bReal / bPagu) * 100).toFixed(1) : '0.0'}%</td>
@@ -1150,45 +823,30 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
               </tr>,
             ]
           })}
-          {koorRows.length > 0 && (() => {
-            const kPagu = koorRows.reduce((s, r) => s + getPaguTotal(r), 0)
-            const kReal = koorRows.reduce((s, r) => s + getRealTotal(r), 0)
-            return [
-              <tr key="h-koor" style={{ background: '#fce4d6' }}>
-                <td style={{ ...S.td, ...S.bold, ...S.center }}>D.</td>
-                <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
-              </tr>,
-              ...koorRows.map((r, ri) => (
-                <tr key={r.id || ('koor-' + ri)}>
-                  <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
-                  <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                  <td style={S.td}>{r.sub_kegiatan || ''}</td>
-                  <td style={S.td}>{r.kode_rekening || ''}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguReal(r))}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(getPaguBop(r))}</td>
-                  <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(getRealTotal(r))}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
-                  <td style={S.td}>{r.keterangan || ''}</td>
-                </tr>
-              )),
-              <tr key="t-koor" style={{ background: '#fce4d6', fontWeight: 'bold' }}>
-                <td colSpan={6} style={{ ...S.td, ...S.right }}>Total Kegiatan Koordinasi Pengelolaan DBH CHT</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(koorRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(koorRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
-                <td style={S.td} />
-                <td style={{ ...S.td, ...S.right }}>{fmt(kReal)}</td>
-                <td style={{ ...S.td, ...S.center }}>{kPagu > 0 ? ((kReal / kPagu) * 100).toFixed(1) : '0.0'}%</td>
-                <td style={S.td} />
-              </tr>,
-            ]
-          })()}
+          {koorRows.length > 0 && [
+            <tr key="h-koor" style={{ background: '#fce4d6' }}>
+              <td style={{ ...S.td, ...S.bold, ...S.center }}>D.</td>
+              <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
+            </tr>,
+            ...koorRows.map((r, ri) => (
+              <tr key={r.id}>
+                <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
+                <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
+                <td style={S.td}>{r.sub_kegiatan || ''}</td>
+                <td style={S.td}>{r.kode_rekening || ''}</td>
+                <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
+                <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
+                <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
+                <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
+                <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
+                <td style={S.td}>{r.keterangan || ''}</td>
+              </tr>
+            )),
+          ]}
           <tr style={{ background: '#a9d18e', fontWeight: 'bold', fontSize: 10 }}>
             <td colSpan={6} style={{ ...S.td, ...S.right }}>TOTAL</td>
-            <td style={{ ...S.td, ...S.right }}>{fmt(allRows.reduce((s,r)=>s+getPaguReal(r),0))}</td>
-            <td style={{ ...S.td, ...S.right }}>{fmt(allRows.reduce((s,r)=>s+getPaguBop(r),0))}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(totalPagu)}</td>
             <td style={S.td} />
             <td style={{ ...S.td, ...S.right }}>{fmt(totalReal)}</td>
             <td style={{ ...S.td, ...S.center }}>
@@ -1201,30 +859,6 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan
       </div>
-
-      {/* ── Blok Tanda Tangan ─────────────────────────────────── */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 32, fontSize: 10 }}>
-        <tbody>
-          <tr>
-            {/* Kiri: Koordinator DBH CHT */}
-            <td style={{ width: '50%', textAlign: 'center', padding: '0 12px', verticalAlign: 'top' }}>
-              <div style={{ marginBottom: 4 }}>Batu, ………………………… {tahun}</div>
-              <div style={{ fontWeight: 'bold', marginBottom: 72 }}>Koordinator DBH CHT</div>
-              <div style={{ borderBottom: '1px solid #000', width: 180, margin: '0 auto 4px' }} />
-              <div style={{ fontWeight: 'bold' }}>………………………………………………</div>
-              <div>NIP. ………………………………………</div>
-            </td>
-            {/* Kanan: Wali Kota Batu */}
-            <td style={{ width: '50%', textAlign: 'center', padding: '0 12px', verticalAlign: 'top' }}>
-              <div style={{ marginBottom: 4 }}>Batu, ………………………… {tahun}</div>
-              <div style={{ fontWeight: 'bold', marginBottom: 72 }}>Wali Kota Batu</div>
-              <div style={{ borderBottom: '1px solid #000', width: 180, margin: '0 auto 4px' }} />
-              <div style={{ fontWeight: 'bold' }}>………………………………………………</div>
-              <div>NIP. / NRP. ………………………………</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
     </div>
   )
 }
@@ -1233,189 +867,120 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, rkpR
 //  HALAMAN LAPORAN UTAMA
 // ══════════════════════════════════════════════════════════════
 
-// ── Cetak dokumen BA — menggunakan ReactDOM renderToString + window.open ──
-// Pendekatan paling reliable: render ke HTML string, buka tab baru, print dari sana
+// Cetak dokumen: render ke div overlay → tombol cetak mencetak HANYA div tersebut
+// Menggunakan createPortal + @media print isolation per elemen
 
-// Fungsi untuk mengkonversi React element ke HTML string dan print di tab baru
-// Unduh dokumen sebagai file Word (.doc) — menggunakan HTML blob, bisa dibuka di Word/LibreOffice
-export function downloadAsWord(htmlContent, filename = 'laporan.doc') {
-  const wordHtml = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office"
-          xmlns:w="urn:schemas-microsoft-com:office:word"
-          xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta charset="utf-8" />
-      <meta name=ProgId content=Word.Document />
-      <meta name=Generator content="Microsoft Word 15" />
-      <meta name=Originator content="Microsoft Word 15" />
-      <!--[if gte mso 9]>
-      <xml><w:WordDocument>
-        <w:View>Print</w:View>
-        <w:Zoom>90</w:Zoom>
-        <w:DoNotOptimizeForBrowser />
-      </w:WordDocument></xml>
-      <![endif]-->
-      <style>
-        @page { size: 29.7cm 21.0cm landscape; margin: 1.5cm 1.8cm; }
-        body { font-family: Arial, sans-serif; font-size: 9pt; }
-        table { border-collapse: collapse; width: 100%; font-size: 8pt; }
-        th { border: 1px solid #000; padding: 3px 5px; background: #d9d9d9; font-weight: bold;
-             text-align: center; vertical-align: middle; word-wrap: break-word; }
-        td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; word-wrap: break-word; }
-        .doc-header { text-align: center; margin-bottom: 10px; }
-        .note { font-size: 8pt; font-style: italic; margin-top: 4px; }
-      </style>
-    </head>
-    <body>${htmlContent}</body>
-    </html>`
-  const blob = new Blob(['﻿', wordHtml], { type: 'application/msword;charset=utf-8' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 200)
+// Inject style cetak SEKALI ke head — hanya mencetak #simdbh-doc-area
+function ensurePrintStyle() {
+  if (document.getElementById('sdb-ps')) return
+  const s = document.createElement('style')
+  s.id = 'sdb-ps'
+  s.textContent = [
+    '@media print {',
+    '  body { margin: 0 !important; }',
+    '  body > *:not([data-simdbh-print]) { display: none !important; visibility: hidden !important; }',
+    '  [data-simdbh-print] { display: block !important; visibility: visible !important; position: static !important; }',
+    '  [data-simdbh-print] .no-print-inner { display: none !important; }',
+    '}',
+    '@page { size: A4; margin: 15mm 12mm; }',
+  ].join('\n')
+  document.head.appendChild(s)
 }
 
-export function printDocumentInNewTab(htmlContent, title, landscape = false) {
-  const winW = landscape ? 1200 : 900
-  const printWin = window.open('', '_blank', `width=${winW},height=700`)
-  if (!printWin) {
-    alert('Popup diblokir browser. Izinkan popup untuk simdbhcht.vercel.app agar bisa mencetak.')
-    return
-  }
-  const pageSize  = landscape ? 'A4 landscape' : 'A4 portrait'
-  const pageMargin = landscape ? '10mm 12mm' : '12mm 10mm'
-  const bodyMaxW  = landscape ? '1100px' : '794px'
-  const bodyPad   = landscape ? '20px 24px' : '24px 28px'
-  const baseFontSz = landscape ? '10px' : '11px'
-  const tblFontSz  = landscape ? '9px'  : '10px'
-  const cellPad    = landscape ? '2px 4px' : '3px 6px'
+// PrintPortal: overlay di layar, cetak HANYA area dokumen
+function PrintPortal({ children, onClose, title }) {
+  const [printEl] = useState(() => {
+    ensurePrintStyle()
+    const el = document.createElement('div')
+    el.setAttribute('data-simdbh-print', '1')
+    el.style.cssText = 'display:none;position:absolute;top:0;left:0;width:100%;background:#fff;z-index:0;'
+    document.body.appendChild(el)
+    return el
+  })
 
-  printWin.document.write(`<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: ${baseFontSz}; color: #000; background: #fff; line-height: 1.5; }
-    table { width: 100%; border-collapse: collapse; font-size: ${tblFontSz}; margin-bottom: 8px; }
-    th { border: 1px solid #000; padding: ${cellPad}; background: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; word-wrap: break-word; }
-    td { border: 1px solid #000; padding: ${cellPad}; vertical-align: top; word-wrap: break-word; }
-    .center { text-align: center; } .right { text-align: right; } .bold { font-weight: bold; }
-    .judul { text-align: center; margin-bottom: 14px; line-height: 1.6; }
-    .judul div { font-weight: bold; font-size: 13px; }
-    p { margin-bottom: 10px; text-align: justify; }
-    .section-title { font-weight: bold; margin: 8px 0 4px; }
-    .wrap, .wrap-wide { padding: ${bodyPad}; max-width: ${bodyMaxW}; margin: 0 auto; }
-    .tanda-tangan { margin-top: 20px; }
-    .mengetahui { text-align: center; margin-top: 16px; }
-    .mengetahui .ttd-line { margin-top: 50px; }
-    @page { size: ${pageSize}; margin: ${pageMargin}; }
-    @media print {
-      .no-print { display: none !important; }
-      body { margin: 0; }
-      table { page-break-inside: auto; }
-      tr { page-break-inside: avoid; page-break-after: auto; }
+  useEffect(() => {
+    return () => {
+      if (printEl && document.body.contains(printEl)) {
+        document.body.removeChild(printEl)
+      }
     }
-    .print-toolbar {
-      background: #1a3a1c; color: #fff; padding: 10px 18px;
-      display: flex; align-items: center; gap: 1rem;
-      position: sticky; top: 0; z-index: 100;
-    }
-    .print-toolbar span { font-weight: 600; font-size: 14px; flex: 1; }
-    .btn-print { background: #52b788; color: #fff; border: none; padding: 8px 22px; border-radius: 5px; cursor: pointer; font-weight: 700; font-size: 14px; }
-    .btn-close { background: transparent; color: #ccc; border: 1px solid #3a5a3c; padding: 8px 14px; border-radius: 5px; cursor: pointer; font-size: 13px; }
-    .orientation-badge { background: rgba(255,255,255,.15); border-radius: 4px; padding: 3px 10px; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="print-toolbar no-print">
-    <span>🖨️ ${title}</span>
-    <span class="orientation-badge">📄 ${landscape ? 'Landscape (A4)' : 'Portrait (A4)'}</span>
-    <button class="btn-print" onclick="window.print()">🖨️ Cetak</button>
-    <button class="btn-close" onclick="window.close()">✕ Tutup</button>
-  </div>
-  <div>
-    ${htmlContent}
-  </div>
-  <script>
-    window.focus()
-  </script>
-</body>
-</html>`)
-  printWin.document.close()
-}
+  }, [])
 
-// PrintPortal: overlay preview di layar + tombol cetak buka tab baru
-function PrintPortal({ docHtml, onClose, title, children }) {
   function doPrint() {
-    printDocumentInNewTab(docHtml, title)
+    // Tampilkan div cetak, sembunyikan semua yang lain via @media print
+    printEl.style.display = 'block'
+    window.print()
+    // Setelah dialog cetak ditutup, sembunyikan lagi
+    setTimeout(() => { printEl.style.display = 'none' }, 500)
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.78)',
-      zIndex: 600, display: 'flex', flexDirection: 'column',
-    }}>
-      {/* Toolbar */}
+    <>
+      {/* Overlay di layar (tidak tercetak karena body>* disembunyikan kecuali data-simdbh-print) */}
       <div style={{
-        background: '#1a3a1c', color: '#fff', padding: '10px 18px',
-        display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.78)',
+        zIndex: 600, display: 'flex', flexDirection: 'column',
       }}>
-        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{title}</span>
-        <div style={{ flex: 1 }} />
-        <button onClick={doPrint}
-          style={{ background: '#52b788', color: '#fff', border: 'none', padding: '8px 22px', borderRadius: 5, cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>
-          🖨️ Cetak
-        </button>
-        <button onClick={onClose}
-          style={{ background: 'transparent', color: '#ccc', border: '1px solid #3a5a3c', padding: '8px 14px', borderRadius: 5, cursor: 'pointer' }}>
-          ✕ Tutup
-        </button>
-      </div>
-      {/* Preview React di layar */}
-      <div style={{ flex: 1, overflow: 'auto', background: '#c8c8c8', padding: '1.5rem' }}>
-        <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
-          {children}
+        {/* Toolbar */}
+        <div style={{
+          background: '#1a3a1c', color: '#fff', padding: '10px 18px',
+          display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0,
+        }}>
+          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{title}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={doPrint}
+            style={{ background: '#52b788', color: '#fff', border: 'none', padding: '8px 22px', borderRadius: 5, cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>
+            🖨️ Cetak
+          </button>
+          <button onClick={onClose}
+            style={{ background: 'transparent', color: '#ccc', border: '1px solid #3a5a3c', padding: '8px 14px', borderRadius: 5, cursor: 'pointer' }}>
+            ✕ Tutup
+          </button>
+        </div>
+        {/* Preview dokumen di layar */}
+        <div style={{ flex: 1, overflow: 'auto', background: '#c8c8c8', padding: '1.5rem' }}>
+          <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+      {/* Portal ke div cetak — ini yang tercetak */}
+      {createPortal(
+        <div className="no-print-inner">{children}</div>,
+        printEl
+      )}
+    </>
   )
 }
 
-// Gabungkan realisasi — jika satu kegiatan (per OPD) punya data di beberapa triwulan,
-// jumlahkan realisasi_keu, realisasi_bop dan rata-rata realisasi_fisik.
-// Key menyertakan created_by agar realisasi dua OPD berbeda tidak digabungkan.
+// Gabungkan realisasi — jika satu OPD punya data di beberapa triwulan,
+// jumlahkan realisasi_keu dan rata-rata realisasi_fisik
 function mergeRealisasi(rows) {
   const map = {}
   for (const r of rows) {
-    const key = (r.bidang_id||'') + '|' + (r.program||'') + '|' + (r.kegiatan||'') + '|' + (r.sub_kegiatan||'') + '|' + (r.is_koordinasi?'1':'0') + '|' + (r.created_by||'')
+    const key = r.bidang_id + '|' + r.program + '|' + r.kegiatan + '|' + r.sub_kegiatan + '|' + (r.is_koordinasi ? '1' : '0')
     if (!map[key]) {
-      map[key] = { ...r, realisasi_keu: 0, realisasi_bop: 0, realisasi_fisik: 0, _count: 0 }
+      map[key] = { ...r, realisasi_keu: 0, realisasi_fisik: 0, _count: 0 }
     }
-    map[key].realisasi_keu  += (r.realisasi_keu  || 0)
-    map[key].realisasi_bop  += (r.realisasi_bop  || 0)
+    map[key].realisasi_keu += (r.realisasi_keu || 0)
     map[key].realisasi_fisik += (r.realisasi_fisik || 0)
     map[key]._count++
   }
   return Object.values(map).map(r => ({
     ...r,
-    realisasi_fisik: r._count > 0 ? Math.round(r.realisasi_fisik / r._count) : 0,
+    realisasi_fisik: r._count > 0 ? (r.realisasi_fisik / r._count) : 0,
   }))
 }
 
 export default function Laporan() {
+  useEffect(() => { ensurePrintCss() }, [])
+
   const { tahun, jenis } = useApp()
   const { profile, isSekretariat } = useAuth()
   const [menu,      setMenu]     = useState('asistensi')
   const [asisRows,  setAsis]     = useState([])
   const [rekonRows, setRekon]    = useState([])
   const [rkpRows,   setRkp]      = useState([])
-  const [rkpAllRows, setRkpAll]  = useState([])  // RKP jenis aktif (semua OPD), untuk lookup pagu di CetakRealisasi
   const [realRows,  setReal]     = useState([])
   const [selBA,     setSelBA]    = useState(null)
   const [prevType,  setPrevType] = useState(null)
@@ -1426,17 +991,13 @@ export default function Laporan() {
   async function loadAll() {
     const uid    = profile?.id
     const isSkrt = isSekretariat
-    const [{ data: a }, { data: rk }, { data: rv }, { data: rl }, { data: ra }] = await Promise.all([
+    const [{ data: a }, { data: rk }, { data: rv }, { data: rl }] = await Promise.all([
       (() => { let q = supabase.from('asistensi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rekonsiliasi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('bidang_id'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
       (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
-      // Lookup pagu_bop: semua RKP tahun ini, jenis yang sama, semua OPD
-      // PENTING: filter jenis agar kegiatan Koordinasi dari RKP Perubahan tidak muncul di laporan Murni
-      supabase.from('rkp_dbhcht').select('bidang_id,program,kegiatan,sub_kegiatan,is_koordinasi,pagu,pagu_bop,created_by').eq('tahun', tahun).eq('jenis', jenis),
     ])
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
-    setRkpAll(ra || [])
   }
 
   const rekonFiltered = twFilter ? rekonRows.filter(r => r.triwulan === twFilter) : rekonRows
@@ -1445,8 +1006,8 @@ export default function Laporan() {
   const realSem1 = mergeRealisasi(realRows.filter(r => ['I', 'II'].includes(r.triwulan)))
   // Semester II = Triwulan I + II + III + IV
   const realSem2 = mergeRealisasi(realRows)
-  // Per triwulan — selalu di-merge agar duplikat input digabung jadi 1 baris
-  const realTw   = twFilter ? mergeRealisasi(realRows.filter(r => r.triwulan === twFilter)) : mergeRealisasi(realRows)
+  // Per triwulan
+  const realTw   = twFilter ? realRows.filter(r => r.triwulan === twFilter) : realRows
 
   const MENUS = [
     { id: 'asistensi',    label: '🤝 BA Asistensi',        count: asisRows.length },
@@ -1462,21 +1023,13 @@ export default function Laporan() {
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
 
-  const MENU_GROUPS = [
-    { section: 'ASISTENSI', items: ['asistensi', 'rekap_asis'] },
-    { section: 'REKONSILIASI', items: ['rekonsiliasi', 'rekap_rekon'] },
-    { section: 'DOKUMEN', items: ['rkp'] },
-    { section: 'REALISASI', items: ['realisasi_tw', 'realisasi_s1', 'realisasi_s2'] },
-  ]
-
   return (
     <div>
       {/* Overlay preview cetak */}
       {selBA && prevType && (
         <PrintPortal
           title={prevType === 'asistensi' ? `🤝 Hasil Asistensi — ${selBA.opd}` : `🔄 Hasil Rekonsiliasi — ${selBA.opd}`}
-          onClose={closePreview}
-          docHtml={prevType === 'asistensi' ? buildAsistensiHtml(selBA, KOTA) : buildRekonsHtml(selBA, KOTA)}>
+          onClose={closePreview}>
           {prevType === 'asistensi'
             ? <CetakAistensi data={selBA} kabupaten={KOTA} />
             : <CetakRekonsiliasi data={selBA} kabupaten={KOTA} />}
@@ -1484,55 +1037,34 @@ export default function Laporan() {
       )}
 
       {/* Header halaman */}
-      <div className="flex-between no-print" style={{ flexWrap: 'wrap', gap: '.4rem', marginBottom: '.5rem' }}>
-        <div className="page-title" style={{ margin: 0, fontSize: '1.05rem' }}>🖨️ Laporan & Cetak Dokumen</div>
-        <span className="chip">📍 {KOTA}</span>
+      <div className="flex-between mb-2 no-print" style={{ flexWrap: 'wrap', gap: '.5rem' }}>
+        <div className="page-title" style={{ margin: 0 }}>🖨️ Laporan & Cetak Dokumen</div>
+        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <span className="chip">📍 {KOTA}</span>
+        </div>
       </div>
 
-      {/* Layout 2-kolom: sidenav kiri + konten kanan */}
-      <div className="laporan-layout no-print-layout">
-        {/* Sidebar navigasi vertikal */}
-        <nav className="laporan-sidenav no-print">
-          {MENU_GROUPS.map(g => (
-            <div key={g.section}>
-              <div className="laporan-sidenav-section">{g.section}</div>
-              {g.items.map(id => {
-                const m = MENUS.find(x => x.id === id)
-                if (!m) return null
-                const needsTwFilter = id === 'rekonsiliasi' || id === 'rekap_rekon' || id === 'realisasi_tw'
-                return (
-                  <div key={id}>
-                    <div
-                      className={`laporan-sidenav-item ${menu === id ? 'active' : ''}`}
-                      onClick={() => { setMenu(id); setSelBA(null) }}
-                    >
-                      <span style={{ fontSize: '.85rem' }}>{m.label.split(' ')[0]}</span>
-                      <span style={{ flex: 1 }}>{m.label.split(' ').slice(1).join(' ')}</span>
-                      <span style={{ fontSize: '.65rem', color: 'var(--text2)' }}>{m.count}</span>
-                    </div>
-                    {/* Filter triwulan inline di sidenav saat menu aktif */}
-                    {menu === id && needsTwFilter && (
-                      <div style={{ padding: '.2rem .75rem .4rem', borderLeft: '3px solid var(--accent)' }}>
-                        <select
-                          className="form-control"
-                          style={{ fontSize: '.72rem', padding: '3px 6px', height: 'auto' }}
-                          value={twFilter}
-                          onChange={e => setTwFilter(e.target.value)}
-                        >
-                          <option value="">Semua Triwulan</option>
-                          {['I','II','III','IV'].map(t => <option key={t} value={t}>Triwulan {t}</option>)}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </nav>
+      {/* Tabs menu */}
+      <div className="tabs no-print" style={{ flexWrap: 'wrap' }}>
+        {MENUS.map(m => (
+          <div key={m.id} className={`tab ${menu === m.id ? 'active' : ''}`}
+            onClick={() => { setMenu(m.id); setSelBA(null) }}>
+            {m.label} <span style={{ fontSize: '.7rem', color: 'var(--text2)', marginLeft: 3 }}>({m.count})</span>
+          </div>
+        ))}
+      </div>
 
-        {/* Area konten */}
-        <div className="laporan-body">
+      {/* Filter triwulan (hanya untuk rekonsiliasi dan realisasi triwulan) */}
+      {(menu === 'rekonsiliasi' || menu === 'rekap_rekon' || menu === 'realisasi_tw') && (
+        <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <label style={{ fontSize: '.82rem', color: 'var(--text2)' }}>Filter Triwulan:</label>
+          <select className="form-control" style={{ width: 160 }} value={twFilter} onChange={e => setTwFilter(e.target.value)}>
+            <option value="">Semua Triwulan</option>
+            {['I', 'II', 'III', 'IV'].map(t => <option key={t} value={t}>Triwulan {t}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* ── Konten ── */}
 
       {/* Daftar BA Asistensi */}
@@ -1579,15 +1111,14 @@ export default function Laporan() {
 
       {/* Rekap Asistensi */}
       {menu === 'rekap_asis' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title, false); }}>🖨️ Cetak Rekap</button>
-            <span className="chip">📄 Portrait A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Rekap</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapAisistensi rows={asisRows} tahun={tahun} kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Daftar BA Rekonsiliasi */}
@@ -1635,75 +1166,67 @@ export default function Laporan() {
 
       {/* Rekap Rekonsiliasi */}
       {menu === 'rekap_rekon' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS + '</style>' + div.innerHTML, document.title, false); }}>🖨️ Cetak Rekap</button>
-            <span className="chip">📄 Portrait A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Rekap</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapRekonsiliasi rows={rekonFiltered} tahun={tahun} triwulan={twFilter} kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Cetak RKP */}
       {menu === 'rkp' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak RKP</button>
-            <span className="chip">🔄 Landscape A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak RKP</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Realisasi Per Triwulan */}
       {menu === 'realisasi_tw' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan</button>
-            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_' + (twFilter||'Semua') + '_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
-            <span className="chip">🔄 Landscape A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={realTw} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
-              kabupaten={KOTA} rkpRows={rkpAllRows} />
+              kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Realisasi Semester I */}
       {menu === 'realisasi_s1' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester I</button>
-            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_Semester_I_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
-            <span className="chip">🔄 Landscape A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan Semester I</button>
+            <span className="chip">Triwulan I + II</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} rkpRows={rkpAllRows} />
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
 
       {/* Realisasi Semester II */}
       {menu === 'realisasi_s2' && (
-        <div className="print-section-wrapper">
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) printDocumentInNewTab('<style>' + DOC_CSS_LANDSCAPE + '</style>' + div.innerHTML, document.title, true); }}>🖨️ Cetak Laporan Semester II</button>
-            <button className="btn btn-outline" onClick={e => { const div = e.target.closest('.print-section-wrapper')?.querySelector('.doc-printable'); if(div) downloadAsWord(div.innerHTML, 'Laporan_Realisasi_Semester_II_' + tahun + '.doc'); }}>⬇️ Unduh Word</button>
-            <span className="chip">🔄 Landscape A4</span>
+        <>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan Semester II</button>
+            <span className="chip">Triwulan I + II + III + IV</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>
-            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} rkpRows={rkpAllRows} />
+          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} />
           </div>
-        </div>
+        </>
       )}
-        </div> {/* /laporan-body */}
-      </div> {/* /laporan-layout */}
     </div>
   )
 }
