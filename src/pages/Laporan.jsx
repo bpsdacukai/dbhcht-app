@@ -973,8 +973,7 @@ function mergeRealisasi(rows) {
 }
 
 export default function Laporan() {
-  useEffect(() => { ensurePrintCss() }, [])
-
+  
   const { tahun, jenis } = useApp()
   const { profile, isSekretariat } = useAuth()
   const [menu,      setMenu]     = useState('asistensi')
