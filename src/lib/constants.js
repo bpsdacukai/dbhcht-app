@@ -147,6 +147,8 @@ export const KODE_REKENING_BY_BIDANG = {
     { kode:'X.XX.01.2.07.0002', nama:'Pengadaan Kendaraan Dinas Operasional atau Lapangan' },
   ],
   hukum: [
+    { kode:'1.05.02.2.02.0010', nama:'Sosialisasi Penegakan Peraturan Daerah dan Peraturan Kepala Daerah' },
+    { kode:'1.05.02.2.02.0011', nama:'Penanganan  Atas Pelanggaran Peraturan Daerah dan Peraturan Kepala Daerah' },
     { kode:'1.05.02.2.01.0023', nama:'Penyediaan Layanan Informasi dalam Penyelenggaraan Ketentraman dan Ketertiban Umum' },
     { kode:'2.16.02.2.01.0021', nama:'Pengelolaan Media Komunikasi Publik' },
     { kode:'2.16.02.2.01.0023', nama:'Penyusunan Konten' },
