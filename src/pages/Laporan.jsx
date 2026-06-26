@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
@@ -55,9 +55,7 @@ const S = {
 }
 
 // ── Tabel peserta (B. PELAKSANA) ───────────────────────────────
-// Kolom: No | Nama | NIP  (bukan Jabatan)
 function TabelPeserta({ judul, peserta }) {
-  // hanya baris yang ada nama atau NIP
   const list = Array.isArray(peserta) ? peserta.filter(p => p.nama || p.jabatan) : []
   const rows = list.length > 0 ? list : [{ nama: '', jabatan: '' }]
   return (
@@ -76,7 +74,6 @@ function TabelPeserta({ judul, peserta }) {
             <tr key={i}>
               <td style={{ ...S.td, ...S.center }}>{i + 1}</td>
               <td style={{ ...S.td, minHeight: 18 }}>{p.nama || ''}</td>
-              {/* jabatan field dipakai untuk menyimpan NIP */}
               <td style={{ ...S.td, minHeight: 18 }}>{p.jabatan || ''}</td>
             </tr>
           ))}
@@ -86,9 +83,7 @@ function TabelPeserta({ judul, peserta }) {
   )
 }
 
-// ── Tanda tangan — format TABEL sesuai lampiran format_kolom ──
-// Kolom: No | Nama | NIP | OPD/Sekretariat | Tanda Tangan
-// Semua peserta (Sekretariat + OPD) dalam SATU tabel
+// ── Tanda tangan ──────────────────────────────────────────────
 function TandaTangan({ ps, po, kota }) {
   const sekList = (ps || []).filter(p => p.nama)
   const opdList = (po || []).filter(p => p.nama)
@@ -136,7 +131,7 @@ function TandaTangan({ ps, po, kota }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  HASIL ASISTENSI  —  data terisi penuh dari inputan
+//  HASIL ASISTENSI
 // ══════════════════════════════════════════════════════════════
 export function CetakAistensi({ data, kabupaten = KOTA }) {
   if (!data) return null
@@ -150,11 +145,8 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
     return b ? b.label : (data.bidang_id || '')
   })()
 
-  // Nomor otomatis dari nomor urut BA + tanggal
   const nomorDoc = fmtNomorAsist(data.nomor_ba, data.tanggal)
 
-  // C. Hasil Asistensi — 7 poin
-  // hasil_pembahasan → poin 1, catatan → poin 4, tindak lanjut KOSONG
   const hasilItems = [
     { no: 1, uraian: 'Kesesuaian bidang penggunaan DBH CHT',    catatan: data.hasil_pembahasan || '' },
     { no: 2, uraian: 'Kesesuaian indikator dan target',          catatan: '' },
@@ -167,7 +159,6 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
 
   return (
     <div style={S.doc}>
-      {/* JUDUL */}
       <div style={{ textAlign: 'center', marginBottom: 14, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 'bold', fontSize: 13 }}>
           HASIL ASISTENSI RANCANGAN KEGIATAN DAN PENGANGGARAN
@@ -183,7 +174,6 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
         </div>
       </div>
 
-      {/* PEMBUKAAN */}
       <p style={{ marginBottom: 12, textAlign: 'justify' }}>
         Pada hari ini <strong>{fmtHari(data.tanggal)}</strong> tanggal{' '}
         <strong>{fmtTgl(data.tanggal)}</strong>{' '}
@@ -193,7 +183,6 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
         daerah pengguna DBH CHT sebagai berikut:
       </p>
 
-      {/* A. IDENTITAS */}
       <div style={{ ...S.bold, marginBottom: 4 }}>A. IDENTITAS PERANGKAT DAERAH</div>
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <tbody>
@@ -215,7 +204,6 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
         </tbody>
       </table>
 
-      {/* Rincian RKP jika ada snapshot */}
       {snap.length > 0 && (
         <>
           <div style={{ marginBottom: 3, fontSize: 11, fontStyle: 'italic' }}>
@@ -273,12 +261,10 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
         </>
       )}
 
-      {/* B. PELAKSANA — kolom NIP */}
       <div style={{ ...S.bold, marginBottom: 4 }}>B. PELAKSANA ASISTENSI</div>
       <TabelPeserta judul="1. Sekretariat Tim Koordinasi Penggunaan DBH CHT" peserta={ps} />
       <TabelPeserta judul="2. Perangkat Daerah Pengguna" peserta={po} />
 
-      {/* C. HASIL ASISTENSI — 7 poin, tindak lanjut KOSONG */}
       <div style={{ ...S.bold, margin: '8px 0 4px' }}>C. HASIL ASISTENSI</div>
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <thead>
@@ -295,14 +281,12 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
               <td style={{ ...S.td, ...S.center }}>{item.no}</td>
               <td style={S.td}>{item.uraian}</td>
               <td style={{ ...S.td, minHeight: 22 }}>{item.catatan}</td>
-              {/* Tindak lanjut kosong — diisi manual */}
               <td style={{ ...S.td, minHeight: 22 }}></td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* D. KESIMPULAN */}
       <div style={{ ...S.bold, margin: '8px 0 4px' }}>D. KESIMPULAN</div>
       <p style={{ marginBottom: 6 }}>
         Berdasarkan hasil asistensi, Rancangan Kegiatan dan Penganggaran DBH CHT pada Perangkat
@@ -324,14 +308,13 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
       </div>
       <p>Demikian Berita Acara Hasil Asistensi ini dibuat untuk digunakan sebagaimana mestinya.</p>
 
-      {/* TANDA TANGAN */}
       <TandaTangan ps={ps} po={po} kota={kabupaten} />
     </div>
   )
 }
 
 // ══════════════════════════════════════════════════════════════
-//  HASIL REKONSILIASI  —  data terisi penuh dari inputan
+//  HASIL REKONSILIASI
 // ══════════════════════════════════════════════════════════════
 export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
   if (!data) return null
@@ -343,7 +326,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
 
   return (
     <div style={S.doc}>
-      {/* JUDUL */}
       <div style={{ textAlign: 'center', marginBottom: 14, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 'bold', fontSize: 13 }}>
           HASIL REKONSILIASI REALISASI KEGIATAN DAN ANGGARAN
@@ -359,7 +341,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         </div>
       </div>
 
-      {/* PEMBUKAAN */}
       <p style={{ marginBottom: 12, textAlign: 'justify' }}>
         Pada hari ini <strong>{fmtHari(data.tanggal)}</strong> tanggal{' '}
         <strong>{fmtTgl(data.tanggal)}</strong>{' '}
@@ -370,7 +351,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         Perangkat Daerah pengguna DBH CHT.
       </p>
 
-      {/* A. IDENTITAS */}
       <div style={{ ...S.bold, marginBottom: 4 }}>A. IDENTITAS PERANGKAT DAERAH</div>
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <tbody>
@@ -395,12 +375,10 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         </tbody>
       </table>
 
-      {/* B. PELAKSANA — kolom NIP */}
       <div style={{ ...S.bold, marginBottom: 4 }}>B. PELAKSANA REKONSILIASI</div>
       <TabelPeserta judul="1. Sekretariat Tim Koordinasi Penggunaan DBH CHT" peserta={ps} />
       <TabelPeserta judul="2. Perangkat Daerah Pengguna" peserta={po} />
 
-      {/* C. HASIL REKONSILIASI */}
       <div style={{ ...S.bold, margin: '8px 0 4px' }}>C. HASIL REKONSILIASI REALISASI</div>
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <thead>
@@ -414,7 +392,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
           </tr>
         </thead>
         <tbody>
-          {/* Baris Program */}
           <tr>
             <td style={{ ...S.td, ...S.center }}>1</td>
             <td style={S.td}><strong>Program</strong><br />{data.program || ''}</td>
@@ -423,25 +400,16 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
             <td style={{ ...S.td, ...S.center }}>{data.realisasi_fisik || 0}%</td>
             <td style={S.td}></td>
           </tr>
-          {/* Baris Kegiatan */}
           <tr>
             <td style={{ ...S.td, ...S.center }}>2</td>
             <td style={S.td}><strong>Kegiatan</strong><br />{data.kegiatan || ''}</td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
+            <td style={S.td}></td><td style={S.td}></td><td style={S.td}></td><td style={S.td}></td>
           </tr>
-          {/* Baris Sub Kegiatan */}
           <tr>
             <td style={{ ...S.td, ...S.center }}>3</td>
             <td style={S.td}><strong>Sub Kegiatan</strong><br />{data.sub_kegiatan || ''}</td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
-            <td style={S.td}></td>
+            <td style={S.td}></td><td style={S.td}></td><td style={S.td}></td><td style={S.td}></td>
           </tr>
-          {/* Jika ada snapshot realisasi detail */}
           {snap.length > 0 && snap.map((r, i) => (
             <tr key={'snap-' + i}>
               <td style={{ ...S.td, ...S.center }}>{i + 4}</td>
@@ -455,7 +423,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         </tbody>
       </table>
 
-      {/* D. PERMASALAHAN DAN TINDAK LANJUT */}
       <div style={{ ...S.bold, margin: '8px 0 4px' }}>D. PERMASALAHAN DAN TINDAK LANJUT</div>
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <thead>
@@ -471,7 +438,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
           <tr>
             <td style={{ ...S.td, ...S.center }}>1</td>
             <td style={{ ...S.td, minHeight: 30 }}>{data.permasalahan || ''}</td>
-            {/* Tindak lanjut KOSONG — diisi manual */}
             <td style={{ ...S.td, minHeight: 30 }}></td>
             <td style={{ ...S.td, minHeight: 30 }}>{data.penanggung_jawab || ''}</td>
             <td style={{ ...S.td, minHeight: 30 }}></td>
@@ -486,7 +452,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         </tbody>
       </table>
 
-      {/* E. KESIMPULAN */}
       <div style={{ ...S.bold, margin: '8px 0 4px' }}>E. KESIMPULAN</div>
       <p style={{ marginBottom: 6 }}>
         Berdasarkan hasil rekonsiliasi Triwulan <strong>{data.triwulan}</strong> Tahun
@@ -509,7 +474,6 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
       </div>
       <p>Demikian Berita Acara Hasil Rekonsiliasi ini dibuat untuk digunakan sebagaimana mestinya.</p>
 
-      {/* TANDA TANGAN */}
       <TandaTangan ps={ps} po={po} kota={kabupaten} />
     </div>
   )
@@ -752,7 +716,7 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  LAPORAN REALISASI  (triwulan, semester I, semester II)
+//  LAPORAN REALISASI
 // ══════════════════════════════════════════════════════════════
 export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
   const koorRows   = rows.filter(r => r.is_koordinasi)
@@ -864,13 +828,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  HALAMAN LAPORAN UTAMA
+//  PRINT INFRASTRUCTURE
 // ══════════════════════════════════════════════════════════════
-
-// Cetak dokumen: render ke div overlay → tombol cetak mencetak HANYA div tersebut
-// Menggunakan createPortal + @media print isolation per elemen
-
-// Inject style cetak SEKALI ke head — hanya mencetak #simdbh-doc-area
 function ensurePrintStyle() {
   if (document.getElementById('sdb-ps')) return
   const s = document.createElement('style')
@@ -887,7 +846,6 @@ function ensurePrintStyle() {
   document.head.appendChild(s)
 }
 
-// PrintPortal: overlay di layar, cetak HANYA area dokumen
 function PrintPortal({ children, onClose, title }) {
   const [printEl] = useState(() => {
     ensurePrintStyle()
@@ -907,21 +865,17 @@ function PrintPortal({ children, onClose, title }) {
   }, [])
 
   function doPrint() {
-    // Tampilkan div cetak, sembunyikan semua yang lain via @media print
     printEl.style.display = 'block'
     window.print()
-    // Setelah dialog cetak ditutup, sembunyikan lagi
     setTimeout(() => { printEl.style.display = 'none' }, 500)
   }
 
   return (
     <>
-      {/* Overlay di layar (tidak tercetak karena body>* disembunyikan kecuali data-simdbh-print) */}
       <div style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,.78)',
         zIndex: 600, display: 'flex', flexDirection: 'column',
       }}>
-        {/* Toolbar */}
         <div style={{
           background: '#1a3a1c', color: '#fff', padding: '10px 18px',
           display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0,
@@ -937,14 +891,12 @@ function PrintPortal({ children, onClose, title }) {
             ✕ Tutup
           </button>
         </div>
-        {/* Preview dokumen di layar */}
         <div style={{ flex: 1, overflow: 'auto', background: '#c8c8c8', padding: '1.5rem' }}>
           <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
             {children}
           </div>
         </div>
       </div>
-      {/* Portal ke div cetak — ini yang tercetak */}
       {createPortal(
         <div className="no-print-inner">{children}</div>,
         printEl
@@ -953,8 +905,9 @@ function PrintPortal({ children, onClose, title }) {
   )
 }
 
-// Gabungkan realisasi — jika satu OPD punya data di beberapa triwulan,
-// jumlahkan realisasi_keu dan rata-rata realisasi_fisik
+// ══════════════════════════════════════════════════════════════
+//  MERGE REALISASI
+// ══════════════════════════════════════════════════════════════
 function mergeRealisasi(rows) {
   const map = {}
   for (const r of rows) {
@@ -972,10 +925,16 @@ function mergeRealisasi(rows) {
   }))
 }
 
+// ══════════════════════════════════════════════════════════════
+//  HALAMAN LAPORAN UTAMA
+// ══════════════════════════════════════════════════════════════
 export default function Laporan() {
-  
+  // ✅ FIX 1: hapus useEffect ensurePrintCss() yang tidak ada — penyebab crash utama
+  // ✅ FIX 2: isSekretariat diturunkan dari profile.role, bukan destructure dari useAuth
   const { tahun, jenis } = useApp()
-  const { profile, isSekretariat } = useAuth()
+  const { profile } = useAuth()
+  const isSekretariat = profile?.role === 'sekretariat'
+
   const [menu,      setMenu]     = useState('asistensi')
   const [asisRows,  setAsis]     = useState([])
   const [rekonRows, setRekon]    = useState([])
@@ -985,7 +944,7 @@ export default function Laporan() {
   const [prevType,  setPrevType] = useState(null)
   const [twFilter,  setTwFilter] = useState('')
 
-  useEffect(() => { loadAll() }, [tahun, jenis])
+  useEffect(() => { if (profile) loadAll() }, [tahun, jenis, profile])
 
   async function loadAll() {
     const uid    = profile?.id
@@ -1001,11 +960,8 @@ export default function Laporan() {
 
   const rekonFiltered = twFilter ? rekonRows.filter(r => r.triwulan === twFilter) : rekonRows
 
-  // Semester I = Triwulan I + II
   const realSem1 = mergeRealisasi(realRows.filter(r => ['I', 'II'].includes(r.triwulan)))
-  // Semester II = Triwulan I + II + III + IV
   const realSem2 = mergeRealisasi(realRows)
-  // Per triwulan
   const realTw   = twFilter ? realRows.filter(r => r.triwulan === twFilter) : realRows
 
   const MENUS = [
@@ -1021,6 +977,12 @@ export default function Laporan() {
 
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
+
+  function doCetak() {
+    document.body.classList.add('printing-doc')
+    window.print()
+    setTimeout(() => document.body.classList.remove('printing-doc'), 800)
+  }
 
   return (
     <div>
@@ -1053,7 +1015,7 @@ export default function Laporan() {
         ))}
       </div>
 
-      {/* Filter triwulan (hanya untuk rekonsiliasi dan realisasi triwulan) */}
+      {/* Filter triwulan */}
       {(menu === 'rekonsiliasi' || menu === 'rekap_rekon' || menu === 'realisasi_tw') && (
         <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
           <label style={{ fontSize: '.82rem', color: 'var(--text2)' }}>Filter Triwulan:</label>
@@ -1064,9 +1026,7 @@ export default function Laporan() {
         </div>
       )}
 
-      {/* ── Konten ── */}
-
-      {/* Daftar BA Asistensi */}
+      {/* ── Daftar BA Asistensi ── */}
       {menu === 'asistensi' && (
         <div className="card">
           <div className="card-title">📋 Berita Acara Asistensi TA {tahun}</div>
@@ -1108,11 +1068,11 @@ export default function Laporan() {
         </div>
       )}
 
-      {/* Rekap Asistensi */}
+      {/* ── Rekap Asistensi ── */}
       {menu === 'rekap_asis' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapAisistensi rows={asisRows} tahun={tahun} kabupaten={KOTA} />
@@ -1120,7 +1080,7 @@ export default function Laporan() {
         </>
       )}
 
-      {/* Daftar BA Rekonsiliasi */}
+      {/* ── Daftar BA Rekonsiliasi ── */}
       {menu === 'rekonsiliasi' && (
         <div className="card">
           <div className="card-title">📋 Berita Acara Rekonsiliasi TA {tahun}</div>
@@ -1163,11 +1123,11 @@ export default function Laporan() {
         </div>
       )}
 
-      {/* Rekap Rekonsiliasi */}
+      {/* ── Rekap Rekonsiliasi ── */}
       {menu === 'rekap_rekon' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapRekonsiliasi rows={rekonFiltered} tahun={tahun} triwulan={twFilter} kabupaten={KOTA} />
@@ -1175,11 +1135,11 @@ export default function Laporan() {
         </>
       )}
 
-      {/* Cetak RKP */}
+      {/* ── Cetak RKP ── */}
       {menu === 'rkp' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak RKP</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
@@ -1187,11 +1147,11 @@ export default function Laporan() {
         </>
       )}
 
-      {/* Realisasi Per Triwulan */}
+      {/* ── Realisasi Per Triwulan ── */}
       {menu === 'realisasi_tw' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan</button>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={realTw} tahun={tahun}
@@ -1201,11 +1161,11 @@ export default function Laporan() {
         </>
       )}
 
-      {/* Realisasi Semester I */}
+      {/* ── Realisasi Semester I ── */}
       {menu === 'realisasi_s1' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan Semester I</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester I</button>
             <span className="chip">Triwulan I + II</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
@@ -1214,11 +1174,11 @@ export default function Laporan() {
         </>
       )}
 
-      {/* Realisasi Semester II */}
+      {/* ── Realisasi Semester II ── */}
       {menu === 'realisasi_s2' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={() => { document.body.classList.add('printing-doc'); window.print(); setTimeout(() => document.body.classList.remove('printing-doc'), 800) }}>🖨️ Cetak Laporan Semester II</button>
+            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester II</button>
             <span className="chip">Triwulan I + II + III + IV</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
