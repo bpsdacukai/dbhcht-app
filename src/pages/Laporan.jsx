@@ -130,6 +130,37 @@ function TandaTangan({ ps, po, kota }) {
   )
 }
 
+// ── TTD format tata naskah dinas Kota Batu ──────────────────────
+// Kiri : Koordinator Penggunaan DBH CHT Kota Batu
+// Kanan: Kota + tanggal, WALI KOTA BATU
+function TtdWalikota({ kota = KOTA, tanggal }) {
+  const tgl = tanggal || new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
+  return (
+    <div style={{ marginTop: 28, fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* Kiri — Koordinator */}
+      <div style={{ textAlign: 'center', width: '44%' }}>
+        <div>Koordinator Penggunaan DBH CHT</div>
+        <div style={{ fontWeight: 600 }}>{kota}</div>
+        <div style={{ height: 56, borderBottom: '1px dotted #555', margin: '8px auto 4px', width: '80%' }} />
+        <div style={{ fontWeight: 600, textDecoration: 'underline' }}>
+          (......................................)
+        </div>
+        <div style={{ fontSize: 10, marginTop: 2 }}>NIP. .................................</div>
+      </div>
+      {/* Kanan — Wali Kota */}
+      <div style={{ textAlign: 'center', width: '44%' }}>
+        <div>{kota}, {tgl}</div>
+        <div style={{ fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: '.04em' }}>WALI KOTA BATU</div>
+        <div style={{ height: 56, borderBottom: '1px dotted #555', margin: '8px auto 4px', width: '80%' }} />
+        <div style={{ fontWeight: 600, textDecoration: 'underline' }}>
+          (......................................)
+        </div>
+        <div style={{ fontSize: 10, marginTop: 2 }}>NIP. .................................</div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════
 //  HASIL ASISTENSI
 // ══════════════════════════════════════════════════════════════
@@ -535,6 +566,7 @@ export function RekapAisistensi({ rows = [], tahun, kabupaten = KOTA }) {
       <div style={{ marginTop: 6, fontSize: 9 }}>
         OPD diasistensikan: {rows.length} | Lanjut: {rows.filter(r => r.kesimpulan === 'dapat_ditindaklanjuti').length} | Perlu Perbaikan: {rows.filter(r => r.kesimpulan === 'perlu_perbaikan').length}
       </div>
+      <TtdWalikota kota={kabupaten} />
     </div>
   )
 }
@@ -607,6 +639,7 @@ export function RekapRekonsiliasi({ rows = [], tahun, triwulan, kabupaten = KOTA
           </tr>
         </tbody>
       </table>
+      <TtdWalikota kota={kabupaten} />
     </div>
   )
 }
@@ -711,6 +744,7 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan
       </div>
+      <TtdWalikota kota={kabupaten} />
     </div>
   )
 }
@@ -858,8 +892,56 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan. Sisa Anggaran = (Pagu Utama + BOP) − (Realisasi Pagu Utama + Realisasi BOP).
       </div>
+      <TtdWalikota kota={kabupaten} />
     </div>
   )
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DOWNLOAD WORD / EXCEL UTILITIES
+// ══════════════════════════════════════════════════════════════
+
+function fmtRpPlain(v) {
+  return 'Rp ' + Number(v || 0).toLocaleString('id-ID')
+}
+
+// Unduh Word (.doc) dari elemen DOM — pakai Blob HTML yang bisa dibuka MS Word
+function downloadWord(elementId, filename) {
+  const el = document.getElementById(elementId)
+  if (!el) return
+  const html = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office'
+          xmlns:w='urn:schemas-microsoft-com:office:word'
+          xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 10pt; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #999; padding: 4px 6px; font-size: 9pt; }
+        th { background: #e2efda; font-weight: bold; }
+      </style>
+    </head>
+    <body>${el.innerHTML}</body></html>`
+  const blob = new Blob(['﻿', html], { type: 'application/msword' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = filename + '.doc'; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// Unduh Excel (.xls) dari tabel HTML
+function downloadExcel(elementId, filename) {
+  const el = document.getElementById(elementId)
+  if (!el) return
+  // Ambil semua tabel dalam elemen
+  const tables = el.querySelectorAll('table')
+  let combined = '<html><head><meta charset="utf-8"></head><body>'
+  tables.forEach(t => { combined += t.outerHTML + '<br>' })
+  combined += '</body></html>'
+  const blob = new Blob(['﻿', combined], { type: 'application/vnd.ms-excel' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = filename + '.xls'; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1127,10 +1209,12 @@ export default function Laporan() {
       {/* ── Rekap Asistensi ── */}
       {menu === 'rekap_asis' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-rekap-asis', `Rekap_Asistensi_DBH_CHT_${tahun}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-rekap-asis', `Rekap_Asistensi_DBH_CHT_${tahun}`)}>📊 Unduh Excel</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-rekap-asis" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapAisistensi rows={asisRows} tahun={tahun} kabupaten={KOTA} />
           </div>
         </>
@@ -1182,10 +1266,12 @@ export default function Laporan() {
       {/* ── Rekap Rekonsiliasi ── */}
       {menu === 'rekap_rekon' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-rekap-rekon', `Rekap_Rekonsiliasi_DBH_CHT_${tahun}${twFilter?'_Tw'+twFilter:''}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-rekap-rekon', `Rekap_Rekonsiliasi_DBH_CHT_${tahun}${twFilter?'_Tw'+twFilter:''}`)}>📊 Unduh Excel</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-rekap-rekon" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapRekonsiliasi rows={rekonFiltered} tahun={tahun} triwulan={twFilter} kabupaten={KOTA} />
           </div>
         </>
@@ -1194,10 +1280,12 @@ export default function Laporan() {
       {/* ── Cetak RKP ── */}
       {menu === 'rkp' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-rkp', `RKP_DBH_CHT_${tahun}_${jenis}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-rkp', `RKP_DBH_CHT_${tahun}_${jenis}`)}>📊 Unduh Excel</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-rkp" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
           </div>
         </>
@@ -1206,10 +1294,12 @@ export default function Laporan() {
       {/* ── Realisasi Per Triwulan ── */}
       {menu === 'realisasi_tw' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-real-tw', `Realisasi_${tahun}${twFilter?'_Tw'+twFilter:'_Semua'}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-tw', `Realisasi_${tahun}${twFilter?'_Tw'+twFilter:'_Semua'}`)}>📊 Unduh Excel</button>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-real-tw" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={mergeRealisasi(realTw, rkpMap)} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
               kabupaten={KOTA} />
@@ -1220,11 +1310,13 @@ export default function Laporan() {
       {/* ── Realisasi Semester I ── */}
       {menu === 'realisasi_s1' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap', alignItems: 'center' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester I</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-real-s1', `Realisasi_Semester_I_${tahun}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-s1', `Realisasi_Semester_I_${tahun}`)}>📊 Unduh Excel</button>
             <span className="chip">Triwulan I + II</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-real-s1" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} />
           </div>
         </>
@@ -1233,11 +1325,13 @@ export default function Laporan() {
       {/* ── Realisasi Semester II ── */}
       {menu === 'realisasi_s2' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap', alignItems: 'center' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester II</button>
+            <button className="btn btn-info" onClick={() => downloadWord('doc-real-s2', `Realisasi_Semester_II_${tahun}`)}>📄 Unduh Word</button>
+            <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-s2', `Realisasi_Semester_II_${tahun}`)}>📊 Unduh Excel</button>
             <span className="chip">Triwulan I + II + III + IV</span>
           </div>
-          <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div id="doc-real-s2" className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} />
           </div>
         </>
