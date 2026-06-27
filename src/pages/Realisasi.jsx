@@ -8,7 +8,7 @@ import { getPaguOpd } from '../lib/supabase.js'
 
 const EMPTY = {
   rkp_id:'', bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'',
-  volume:'', satuan:'', pagu_utama:0, bop:0,
+  volume:'', satuan:'', pagu:0, pagu_bop:0,
   realisasi_volume:'', realisasi_pagu_utama:'', realisasi_bop:'',
   realisasi_fisik:'', capaian_output:'', triwulan:'I', keterangan:'',
   is_koordinasi:false,
@@ -36,7 +36,7 @@ export default function Realisasi() {
   useEffect(() => { if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p=>setPaguOpd(p)) }, [profile, tahun, jenis])
 
   async function load() {
-    let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('created_at')
+    let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('created_at')
     if (!isSekretariat) q = q.eq('created_by', profile?.id)
     const { data } = await q
     setRows(data || [])
@@ -55,13 +55,13 @@ export default function Realisasi() {
     : twRows.filter(r => r.bidang_id === bidTab && !r.is_koordinasi)
 
   // ── Helper hitung (dipakai tabel & rekap) ───────────────────────
-  const paguTotal       = (r) => (r.pagu_utama||0) + (r.bop||0)
+  const paguTotal       = (r) => (r.pagu||0) + (r.pagu_bop||0)
   const realisasiTotal  = (r) => (r.realisasi_pagu_utama||0) + (r.realisasi_bop||0)
   const sisaAnggaran    = (r) => paguTotal(r) - realisasiTotal(r)
   const capaianPct      = (r) => paguTotal(r) > 0 ? (realisasiTotal(r) / paguTotal(r) * 100) : 0
 
-  const sumPaguUtama = (arr) => arr.reduce((s,r)=>s+(r.pagu_utama||0),0)
-  const sumBopPagu   = (arr) => arr.reduce((s,r)=>s+(r.bop||0),0)
+  const sumPaguUtama = (arr) => arr.reduce((s,r)=>s+(r.pagu||0),0)
+  const sumBopPagu   = (arr) => arr.reduce((s,r)=>s+(r.pagu_bop||0),0)
   const sumRealKeu   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_pagu_utama||0),0)
   const sumRealBop   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_bop||0),0)
   const sumSisa      = (arr) => arr.reduce((s,r)=>s+sisaAnggaran(r),0)
@@ -84,8 +84,14 @@ export default function Realisasi() {
     setEditId(null); setModal(true)
   }
   function openEdit(r) {
+    // Cari data RKP terkait untuk pastikan pagu/pagu_bop terisi (dari rkp_id jika ada)
+    const rkpSrc = r.rkp_id ? rkpRows.find(x => x.id === r.rkp_id) : null
     setForm({
       ...r,
+      pagu:     rkpSrc ? rkpSrc.pagu || 0    : r.pagu || 0,
+      pagu_bop: rkpSrc ? rkpSrc.pagu_bop || 0: r.pagu_bop || 0,
+      volume:   rkpSrc ? rkpSrc.volume || ''  : r.volume || '',
+      satuan:   rkpSrc ? rkpSrc.satuan || ''  : r.satuan || '',
       realisasi_volume:     String(r.realisasi_volume||''),
       realisasi_pagu_utama: String(r.realisasi_pagu_utama||''),
       realisasi_bop:        String(r.realisasi_bop||''),
@@ -95,10 +101,7 @@ export default function Realisasi() {
   }
 
   // Pilih kegiatan dari hasil Penyusunan RKP — Pagu Utama, BOP, Volume,
-  // Satuan, Program, Kegiatan ikut otomatis & terkunci (read-only).
-  // Catatan: r.pagu / r.pagu_bop di sini adalah kolom milik tabel RKP
-  // (rkp_dbhcht), namanya TIDAK berubah. Yang disalin ke form pakai
-  // nama field baru (pagu_utama/bop) sesuai skema realisasi_dbhcht.
+  // Satuan, Program, Kegiatan ikut otomatis & terkunci (read-only)
   function pilihRkp(rkpId) {
     const r = rkpRows.find(x => x.id === rkpId)
     if (!r) { setForm(f => ({ ...f, rkp_id:'' })); return }
@@ -108,7 +111,7 @@ export default function Realisasi() {
       bidang_id: r.bidang_id, is_koordinasi: r.is_koordinasi,
       program: r.program, kegiatan: r.kegiatan, sub_kegiatan: r.sub_kegiatan,
       volume: r.volume, satuan: r.satuan,
-      pagu_utama: r.pagu || 0, bop: r.pagu_bop || 0,
+      pagu: r.pagu || 0, pagu_bop: r.pagu_bop || 0,
     }))
   }
 
@@ -121,9 +124,9 @@ export default function Realisasi() {
       bidang_id:       form.is_koordinasi ? 'koordinasi' : form.bidang_id,
       program:         form.program, kegiatan: form.kegiatan, sub_kegiatan: form.sub_kegiatan,
       volume:          Number(form.volume)||null,
-      satuan:          form.satuan,
-      pagu_utama:      Number(form.pagu_utama)||0,
-      bop:             Number(form.bop)||0,
+      satuan:          form.satuan || '',
+      pagu:            Number(form.pagu)||0,
+      pagu_bop:        Number(form.pagu_bop)||0,
       realisasi_volume:     Number(form.realisasi_volume)||0,
       realisasi_pagu_utama: Number(form.realisasi_pagu_utama)||0,
       realisasi_bop:        Number(form.realisasi_bop)||0,
@@ -237,8 +240,8 @@ export default function Realisasi() {
                       <div className="td-muted">{r.kegiatan}</div>
                     </td>
                     <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{r.volume||''} {r.satuan||''}</td>
-                    <td className="td-muted">{fmtRp(r.pagu_utama)}</td>
-                    <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.bop||0)}</td>
+                    <td className="td-muted">{fmtRp(r.pagu)}</td>
+                    <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.pagu_bop||0)}</td>
                     <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{r.realisasi_volume||0} {r.satuan||''}</td>
                     <td className="td-money">{fmtRp(r.realisasi_pagu_utama)}</td>
                     <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.realisasi_bop||0)}</td>
@@ -318,11 +321,11 @@ export default function Realisasi() {
                   </div>
                   <div className="form-group" style={{flex:1}}>
                     <label className="form-label">Pagu Utama (Rp)</label>
-                    <input className="form-control" readOnly value={fmtRp(form.pagu_utama)} style={{background:'var(--bg2)'}} />
+                    <input className="form-control" readOnly value={fmtRp(form.pagu)} style={{background:'var(--bg2)'}} />
                   </div>
                   <div className="form-group" style={{flex:1}}>
                     <label className="form-label">BOP (Rp)</label>
-                    <input className="form-control" readOnly value={fmtRp(form.bop)} style={{background:'var(--bg2)'}} />
+                    <input className="form-control" readOnly value={fmtRp(form.pagu_bop)} style={{background:'var(--bg2)'}} />
                   </div>
                 </div>
               </div>
@@ -348,12 +351,12 @@ export default function Realisasi() {
                 </div>
                 <div style={{display:'flex',gap:'1.5rem',fontSize:'.78rem',color:'var(--text2)',marginTop:'.3rem'}}>
                   <span>Capaian Realisasi: <strong style={{color:'var(--accent)'}}>
-                    {fmtPct((Number(form.pagu_utama)||0)+(Number(form.bop)||0) > 0
-                      ? ((Number(form.realisasi_pagu_utama)||0)+(Number(form.realisasi_bop)||0)) / ((Number(form.pagu_utama)||0)+(Number(form.bop)||0)) * 100
+                    {fmtPct((Number(form.pagu)||0)+(Number(form.pagu_bop)||0) > 0
+                      ? ((Number(form.realisasi_pagu_utama)||0)+(Number(form.realisasi_bop)||0)) / ((Number(form.pagu)||0)+(Number(form.pagu_bop)||0)) * 100
                       : 0)}
                   </strong></span>
                   <span>Sisa Anggaran: <strong>
-                    {fmtRp(((Number(form.pagu_utama)||0)+(Number(form.bop)||0)) - ((Number(form.realisasi_pagu_utama)||0)+(Number(form.realisasi_bop)||0)))}
+                    {fmtRp(((Number(form.pagu)||0)+(Number(form.pagu_bop)||0)) - ((Number(form.realisasi_pagu_utama)||0)+(Number(form.realisasi_bop)||0)))}
                   </strong></span>
                 </div>
               </div>
