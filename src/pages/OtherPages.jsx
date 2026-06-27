@@ -482,7 +482,7 @@ export function Rekonsiliasi() {
     if (!opdId) { setRealOPD([]); return }
     // Load realisasi dari OPD ini (semua triwulan, tanpa filter bidang)
     const { data } = await supabase.from('realisasi_dbhcht').select('*')
-      .eq('tahun', tahun).eq('created_by', opdId).order('triwulan')
+      .eq('tahun', tahun).eq('created_by', opdId).order('triwulan,created_at')
     setRealOPD(data||[])
   }
 
@@ -490,8 +490,8 @@ export function Rekonsiliasi() {
   function onSelectReal(val) {
     if (!val) return
     if (val === '__all__') {
-      const totalPagu = realOPD.reduce((s,r)=>s+(r.pagu||0),0)
-      const totalReal = realOPD.reduce((s,r)=>s+(r.realisasi_keu||0),0)
+      const totalPagu = realOPD.reduce((s,r)=>s+(r.pagu||0)+(r.pagu_bop||0),0)
+      const totalReal = realOPD.reduce((s,r)=>s+(r.realisasi_pagu_utama||0)+(r.realisasi_bop||0),0)
       const avgFisik  = realOPD.length ? (realOPD.reduce((s,r)=>s+(r.realisasi_fisik||0),0)/realOPD.length).toFixed(1) : 0
       setForm(f=>({
         ...f,
@@ -695,7 +695,7 @@ export function Rekonsiliasi() {
                   <option key={r.id} value={r.id}>
                     Tw {r.triwulan} — {r.program}
                     {r.kegiatan?' | '+r.kegiatan.slice(0,30):''}
-                    {' ('+fmtRp(r.realisasi_keu)+')'}
+                    {' (Real: '+fmtRp((r.realisasi_pagu_utama||0)+(r.realisasi_bop||0))+')'}
                   </option>
                 ))}
               </select>

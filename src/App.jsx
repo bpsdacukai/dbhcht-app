@@ -15,10 +15,23 @@ export default function App() {
   const { user, profile, loading } = useAuth()
   const { dark } = useApp()
   const [page, setPage] = useState('dashboard')
+  // Sidebar open by default, bisa disembunyikan
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
   }, [dark])
+
+  // Responsive: tutup sidebar otomatis di layar kecil
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth <= 768) setSidebarOpen(false)
+      else setSidebarOpen(true)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   if (loading) {
     return (
@@ -48,9 +61,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Topbar />
+      <Topbar
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen(v => !v)}
+      />
       <div className="layout">
-        <Sidebar page={page} onNav={setPage} />
+        <Sidebar page={page} onNav={setPage} open={sidebarOpen} />
         <main className="main-content">
           {pages[page] || <Dashboard />}
         </main>

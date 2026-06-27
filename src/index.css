@@ -64,10 +64,8 @@ code { background: var(--bg3); padding: 1px 5px; border-radius: 4px; font-size: 
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
 .sidebar {
-  width: 210px;
   background: var(--bg2);
   border-right: 1px solid var(--border);
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -242,5 +240,5 @@ tbody tr:hover { background: var(--bg3); }
   .main-content { padding: .9rem; }
 }
 @media (max-width: 560px) {
-  .sidebar { display: none; }
+  /* sidebar dikontrol via JS (width toggle), tidak perlu display:none */
 }

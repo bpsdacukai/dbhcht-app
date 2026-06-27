@@ -723,8 +723,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
-  const totalPaguUtama = rows.reduce((s, r) => s + (r.pagu || 0), 0)
-  const totalBop = rows.reduce((s, r) => s + (r.pagu_bop || 0), 0)
+  const totalPaguUtama = rows.reduce((s, r) => s + (r.pagu_utama || 0), 0)
+  const totalBop = rows.reduce((s, r) => s + (r.bop || 0), 0)
   const totalPagu = totalPaguUtama + totalBop
   const totalRealPagu = rows.reduce((s, r) => s + (r.realisasi_pagu_utama || 0), 0)
   const totalRealBop = rows.reduce((s, r) => s + (r.realisasi_bop || 0), 0)
@@ -757,8 +757,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
         <tbody>
           {BIDANG.map((b, bi) => {
             const bRows = byBidang[b.id] || []
-            const bPaguUtama = bRows.reduce((s, r) => s + (r.pagu || 0), 0)
-            const bBop = bRows.reduce((s, r) => s + (r.pagu_bop || 0), 0)
+            const bPaguUtama = bRows.reduce((s, r) => s + (r.pagu_utama || 0), 0)
+            const bBop = bRows.reduce((s, r) => s + (r.bop || 0), 0)
             const bPagu = bPaguUtama + bBop
             const bRealPagu = bRows.reduce((s, r) => s + (r.realisasi_pagu_utama || 0), 0)
             const bRealBop = bRows.reduce((s, r) => s + (r.realisasi_bop || 0), 0)
@@ -770,7 +770,7 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
                 <td colSpan={10} style={{ ...S.td, ...S.bold }}>{b.label}</td>
               </tr>,
               ...bRows.map((r, ri) => {
-                const rPagu = (r.pagu || 0) + (r.pagu_bop || 0)
+                const rPagu = (r.pagu_utama || 0) + (r.bop || 0)
                 const rReal = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
                 const rPct  = rPagu > 0 ? (rReal / rPagu * 100) : 0
                 const rSisa = rPagu - rReal
@@ -778,8 +778,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
                   <tr key={r.id}>
                     <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
                     <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                    <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
-                    <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_bop || 0)}</td>
+                    <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_utama || 0)}</td>
+                    <td style={{ ...S.td, ...S.right }}>{fmt(r.bop || 0)}</td>
                     <td style={{ ...S.td, ...S.center }}>{r.realisasi_volume || 0} {r.satuan || ''}</td>
                     <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_pagu_utama || 0)}</td>
                     <td style={{ ...S.td, ...S.right }}>{fmt(r.realisasi_bop || 0)}</td>
@@ -813,7 +813,7 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
               <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
             </tr>,
             ...koorRows.map((r, ri) => {
-              const rPagu = (r.pagu || 0) + (r.pagu_bop || 0)
+              const rPagu = (r.pagu_utama || 0) + (r.bop || 0)
               const rReal = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
               const rPct  = rPagu > 0 ? (rReal / rPagu * 100) : 0
               const rSisa = rPagu - rReal
@@ -821,8 +821,8 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
                 <tr key={r.id}>
                   <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
                   <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_bop || 0)}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_utama || 0)}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.bop || 0)}</td>
                   <td style={{ ...S.td, ...S.center }}>{r.realisasi_volume || 0} {r.satuan || ''}</td>
                   <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_pagu_utama || 0)}</td>
                   <td style={{ ...S.td, ...S.right }}>{fmt(r.realisasi_bop || 0)}</td>
@@ -946,22 +946,22 @@ function mergeRealisasi(rows) {
       map[key] = {
         ...r,
         realisasi_volume: 0, realisasi_pagu_utama: 0, realisasi_bop: 0,
-        realisasi_fisik: 0, pagu: 0, pagu_bop: 0, _count: 0,
+        realisasi_fisik: 0, pagu_utama: 0, bop: 0, _count: 0,
       }
     }
     map[key].realisasi_volume     += (r.realisasi_volume || 0)
     map[key].realisasi_pagu_utama += (r.realisasi_pagu_utama || 0)
     map[key].realisasi_bop        += (r.realisasi_bop || 0)
     map[key].realisasi_fisik      += (r.realisasi_fisik || 0)
-    // Pagu Utama & BOP diambil dari RKP terkait (rkp_id) saat input Realisasi.
-    // Nilainya sama di setiap baris triwulan untuk kegiatan yang sama,
-    // jadi cukup di-set (bukan dijumlah berulang) per kegiatan unik.
-    map[key].pagu     = r.pagu || 0
-    map[key].pagu_bop = r.pagu_bop || 0
+    // Pagu Utama & BOP adalah snapshot dari RKP (kolom pagu_utama/bop
+    // di tabel realisasi_dbhcht). Nilainya sama di setiap baris triwulan
+    // untuk kegiatan yang sama, jadi cukup di-set (bukan dijumlah berulang).
+    map[key].pagu_utama = r.pagu_utama || 0
+    map[key].bop        = r.bop || 0
     map[key]._count++
   }
   return Object.values(map).map(r => {
-    const paguT = (r.pagu || 0) + (r.pagu_bop || 0)
+    const paguT = (r.pagu_utama || 0) + (r.bop || 0)
     const realT = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
     return {
       ...r,
@@ -1000,7 +1000,7 @@ export default function Laporan() {
       (() => { let q = supabase.from('asistensi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rekonsiliasi_dbhcht').select('*').eq('tahun', tahun).order('tanggal'); if (!isSkrt && uid) q = q.eq('opd_user_id', uid); return q })(),
       (() => { let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('bidang_id'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
-      (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
+      (() => { let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('triwulan'); if (!isSkrt && uid) q = q.eq('created_by', uid); return q })(),
     ])
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
   }
