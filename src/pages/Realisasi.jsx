@@ -8,7 +8,7 @@ import { getPaguOpd } from '../lib/supabase.js'
 
 const EMPTY = {
   rkp_id:'', bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'',
-  volume:'', satuan:'', pagu:0, pagu_bop:0,
+  volume:'', satuan:'', pagu:0, pagu_bop:0,   // hanya untuk display form, TIDAK disimpan ke DB
   realisasi_volume:'', realisasi_pagu_utama:'', realisasi_bop:'',
   realisasi_fisik:'', capaian_output:'', triwulan:'I', keterangan:'',
   is_koordinasi:false,
@@ -36,12 +36,11 @@ export default function Realisasi() {
   useEffect(() => { if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p=>setPaguOpd(p)) }, [profile, tahun, jenis])
 
   async function load() {
-    // Load RKP dulu — jadi rkpRows tersedia sebelum setRows
+    // Load RKP dulu — jadi rkpRows tersedia saat render
     let rq = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis)
     if (!isSekretariat) rq = rq.eq('created_by', profile?.id)
     const { data: rd } = await rq
-    const rkpList = rd || []
-    setRkpRows(rkpList)
+    setRkpRows(rd || [])
 
     let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('created_at')
     if (!isSekretariat) q = q.eq('created_by', profile?.id)
@@ -49,33 +48,39 @@ export default function Realisasi() {
     setRows(data || [])
   }
 
-  const isKoor   = bidTab === 'koordinasi'
-  const twRows   = rows.filter(r => r.triwulan === twTab)
-  const visRows  = isKoor
+  const isKoor = bidTab === 'koordinasi'
+  const twRows = rows.filter(r => r.triwulan === twTab)
+  const visRows = isKoor
     ? twRows.filter(r => r.is_koordinasi)
     : twRows.filter(r => r.bidang_id === bidTab && !r.is_koordinasi)
 
-  // ── Helper hitung (dipakai tabel & rekap) ───────────────────────
-  const paguTotal       = (r) => (r.pagu||0) + (r.pagu_bop||0)
-  const realisasiTotal  = (r) => (r.realisasi_pagu_utama||0) + (r.realisasi_bop||0)
-  const sisaAnggaran    = (r) => paguTotal(r) - realisasiTotal(r)
-  const capaianPct      = (r) => paguTotal(r) > 0 ? (realisasiTotal(r) / paguTotal(r) * 100) : 0
+  // ── Lookup pagu dari rkpRows (pagu tidak disimpan di realisasi_dbhcht) ──────
+  const rkpById = Object.fromEntries(rkpRows.map(r => [r.id, r]))
+  const getPagu    = (r) => (rkpById[r.rkp_id]?.pagu    || 0)
+  const getPaguBop = (r) => (rkpById[r.rkp_id]?.pagu_bop|| 0)
+  const getVolume  = (r) => rkpById[r.rkp_id]?.volume || r.volume || ''
+  const getSatuan  = (r) => rkpById[r.rkp_id]?.satuan  || r.satuan  || ''
 
-  const sumPaguUtama = (arr) => arr.reduce((s,r)=>s+(r.pagu||0),0)
-  const sumBopPagu   = (arr) => arr.reduce((s,r)=>s+(r.pagu_bop||0),0)
-  const sumRealKeu   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_pagu_utama||0),0)
-  const sumRealBop   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_bop||0),0)
-  const sumSisa      = (arr) => arr.reduce((s,r)=>s+sisaAnggaran(r),0)
+  // ── Helper kalkulasi ────────────────────────────────────────────────────────
+  const paguTotal      = (r) => getPagu(r) + getPaguBop(r)
+  const realisasiTotal = (r) => (r.realisasi_pagu_utama||0) + (r.realisasi_bop||0)
+  const sisaAnggaran   = (r) => paguTotal(r) - realisasiTotal(r)
+  const capaianPct     = (r) => paguTotal(r) > 0 ? (realisasiTotal(r) / paguTotal(r) * 100) : 0
 
-  const sem1   = sumRealKeu(rows.filter(r=>['I','II'].includes(r.triwulan))) + sumRealBop(rows.filter(r=>['I','II'].includes(r.triwulan)))
-  const semAll = sumRealKeu(rows) + sumRealBop(rows)
+  const sumPaguUtama = (arr) => arr.reduce((s,r)=>s+getPagu(r),    0)
+  const sumBopPagu   = (arr) => arr.reduce((s,r)=>s+getPaguBop(r), 0)
+  const sumRealKeu   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_pagu_utama||0), 0)
+  const sumRealBop   = (arr) => arr.reduce((s,r)=>s+(r.realisasi_bop||0), 0)
+  const sumSisa      = (arr) => arr.reduce((s,r)=>s+sisaAnggaran(r), 0)
+
+  const sem1       = sumRealKeu(rows.filter(r=>['I','II'].includes(r.triwulan))) + sumRealBop(rows.filter(r=>['I','II'].includes(r.triwulan)))
+  const semAll     = sumRealKeu(rows) + sumRealBop(rows)
   const totalPaguOpd = (paguOpd?.pagu_utama||0) + (paguOpd?.bop||0)
   const pctCapaian   = totalPaguOpd > 0 ? (semAll/totalPaguOpd*100) : 0
 
   const canEdit = isSekretariat
     || (profile?.role === 'opd' && (!bidTab || profile.bidang === bidTab || isKoor))
 
-  // RKP yang belum ada Realisasi-nya di triwulan aktif (supaya tidak dobel input per triwulan)
   const rkpTersedia = rkpRows.filter(r =>
     (isKoor ? r.is_koordinasi : (r.bidang_id === bidTab && !r.is_koordinasi))
   )
@@ -84,19 +89,25 @@ export default function Realisasi() {
     setForm({ ...EMPTY, triwulan: twTab, is_koordinasi: isKoor })
     setEditId(null); setModal(true)
   }
+
   async function openEdit(r) {
-    // Ambil data RKP terkait langsung dari DB untuk pastikan pagu/pagu_bop selalu terisi
-    let rkpSrc = r.rkp_id ? rkpRows.find(x => x.id === r.rkp_id) : null
+    // Cari dari rkpRows; kalau tidak ada, fetch langsung dari DB
+    let rkpSrc = r.rkp_id ? rkpById[r.rkp_id] : null
     if (!rkpSrc && r.rkp_id) {
       const { data: rd } = await supabase.from('rkp_dbhcht').select('*').eq('id', r.rkp_id).maybeSingle()
-      rkpSrc = rd
+      if (rd) {
+        // Tambahkan ke rkpRows lokal supaya kalkulasi benar
+        setRkpRows(prev => prev.some(x=>x.id===rd.id) ? prev : [...prev, rd])
+        rkpSrc = rd
+      }
     }
     setForm({
       ...r,
-      pagu:     rkpSrc ? (rkpSrc.pagu     || 0)  : (r.pagu     || 0),
-      pagu_bop: rkpSrc ? (rkpSrc.pagu_bop || 0)  : (r.pagu_bop || 0),
-      volume:   rkpSrc ? (rkpSrc.volume   || '')  : (r.volume   || ''),
-      satuan:   rkpSrc ? (rkpSrc.satuan   || '')  : (r.satuan   || ''),
+      // pagu/pagu_bop hanya untuk display form — diambil dari RKP
+      pagu:     rkpSrc?.pagu     || 0,
+      pagu_bop: rkpSrc?.pagu_bop || 0,
+      volume:   rkpSrc?.volume   || r.volume  || '',
+      satuan:   rkpSrc?.satuan   || r.satuan  || '',
       realisasi_volume:     String(r.realisasi_volume||''),
       realisasi_pagu_utama: String(r.realisasi_pagu_utama||''),
       realisasi_bop:        String(r.realisasi_bop||''),
@@ -105,33 +116,40 @@ export default function Realisasi() {
     setEditId(r.id); setModal(true)
   }
 
-  // Pilih kegiatan dari hasil Penyusunan RKP — Pagu Utama, BOP, Volume,
-  // Satuan, Program, Kegiatan ikut otomatis & terkunci (read-only)
+  // Pilih kegiatan dari RKP — isi form display (pagu tidak akan disimpan ke DB)
   function pilihRkp(rkpId) {
     const r = rkpRows.find(x => x.id === rkpId)
     if (!r) { setForm(f => ({ ...f, rkp_id:'' })); return }
     setForm(f => ({
       ...f,
-      rkp_id: r.id,
-      bidang_id: r.bidang_id, is_koordinasi: r.is_koordinasi,
-      program: r.program, kegiatan: r.kegiatan, sub_kegiatan: r.sub_kegiatan,
-      volume: r.volume, satuan: r.satuan,
-      pagu: r.pagu || 0, pagu_bop: r.pagu_bop || 0,
+      rkp_id:        r.id,
+      bidang_id:     r.bidang_id,
+      is_koordinasi: r.is_koordinasi,
+      program:       r.program,
+      kegiatan:      r.kegiatan,
+      sub_kegiatan:  r.sub_kegiatan,
+      volume:        r.volume,
+      satuan:        r.satuan,
+      // hanya untuk preview form — TIDAK masuk payload DB
+      pagu:          r.pagu     || 0,
+      pagu_bop:      r.pagu_bop || 0,
     }))
   }
 
   async function save() {
     if (!form.rkp_id) { notify('Pilih kegiatan dari Penyusunan RKP terlebih dahulu!', 'warn'); return }
     setLoading(true)
+    // ⚠️ pagu & pagu_bop TIDAK disimpan — sudah ada di rkp_dbhcht (linked via rkp_id)
     const payload = {
-      tahun, jenis, triwulan: form.triwulan,
+      tahun, jenis,
+      triwulan:        form.triwulan,
       rkp_id:          form.rkp_id,
       bidang_id:       form.is_koordinasi ? 'koordinasi' : form.bidang_id,
-      program:         form.program, kegiatan: form.kegiatan, sub_kegiatan: form.sub_kegiatan,
+      program:         form.program,
+      kegiatan:        form.kegiatan,
+      sub_kegiatan:    form.sub_kegiatan,
       volume:          Number(form.volume)||null,
       satuan:          form.satuan || '',
-      pagu:            Number(form.pagu)||0,
-      pagu_bop:        Number(form.pagu_bop)||0,
       realisasi_volume:     Number(form.realisasi_volume)||0,
       realisasi_pagu_utama: Number(form.realisasi_pagu_utama)||0,
       realisasi_bop:        Number(form.realisasi_bop)||0,
@@ -146,8 +164,8 @@ export default function Realisasi() {
       ? await supabase.from('realisasi_dbhcht').update(payload).eq('id', editId)
       : await supabase.from('realisasi_dbhcht').insert(payload)
     setLoading(false)
-    if (error) { notify('Gagal: '+error.message, 'error'); return }
-    notify(editId?'Realisasi diperbarui':'Realisasi ditambahkan', 'success')
+    if (error) { notify('Gagal: ' + error.message, 'error'); return }
+    notify(editId ? 'Realisasi diperbarui' : 'Realisasi ditambahkan', 'success')
     setModal(false); load()
   }
 
@@ -235,8 +253,10 @@ export default function Realisasi() {
             <tbody>
               {visRows.length===0&&<EmptyRow cols={canEdit?13:12} msg="Belum ada data Realisasi." />}
               {visRows.map((r,i)=>{
-                const pct  = capaianPct(r)
-                const sisa = sisaAnggaran(r)
+                const pagu    = getPagu(r)
+                const paguBop = getPaguBop(r)
+                const pct     = capaianPct(r)
+                const sisa    = sisaAnggaran(r)
                 return (
                   <tr key={r.id} className={r.is_koordinasi?'koordinasi-row':''}>
                     <td style={{fontSize:'.75rem',color:'var(--text2)'}}>{i+1}</td>
@@ -244,10 +264,10 @@ export default function Realisasi() {
                       <div className="td-bold" style={{fontSize:'.8rem'}}>{r.program}</div>
                       <div className="td-muted">{r.kegiatan}</div>
                     </td>
-                    <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{r.volume||''} {r.satuan||''}</td>
-                    <td className="td-muted">{fmtRp(r.pagu)}</td>
-                    <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.pagu_bop||0)}</td>
-                    <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{r.realisasi_volume||0} {r.satuan||''}</td>
+                    <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{getVolume(r)} {getSatuan(r)}</td>
+                    <td className="td-muted">{fmtRp(pagu)}</td>
+                    <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(paguBop)}</td>
+                    <td style={{fontSize:'.78rem',whiteSpace:'nowrap'}}>{r.realisasi_volume||0} {getSatuan(r)}</td>
                     <td className="td-money">{fmtRp(r.realisasi_pagu_utama)}</td>
                     <td style={{color:'var(--gold)',fontWeight:600}}>{fmtRp(r.realisasi_bop||0)}</td>
                     <td><PctBadge value={pct} /></td>
