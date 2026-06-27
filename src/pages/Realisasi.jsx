@@ -36,16 +36,17 @@ export default function Realisasi() {
   useEffect(() => { if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p=>setPaguOpd(p)) }, [profile, tahun, jenis])
 
   async function load() {
+    // Load RKP dulu — jadi rkpRows tersedia sebelum setRows
+    let rq = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis)
+    if (!isSekretariat) rq = rq.eq('created_by', profile?.id)
+    const { data: rd } = await rq
+    const rkpList = rd || []
+    setRkpRows(rkpList)
+
     let q = supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).order('created_at')
     if (!isSekretariat) q = q.eq('created_by', profile?.id)
     const { data } = await q
     setRows(data || [])
-
-    // Sumber data Realisasi = tabel hasil Penyusunan RKP (jenis & tahun yang sama)
-    let rq = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis)
-    if (!isSekretariat) rq = rq.eq('created_by', profile?.id)
-    const { data: rd } = await rq
-    setRkpRows(rd || [])
   }
 
   const isKoor   = bidTab === 'koordinasi'
@@ -83,15 +84,19 @@ export default function Realisasi() {
     setForm({ ...EMPTY, triwulan: twTab, is_koordinasi: isKoor })
     setEditId(null); setModal(true)
   }
-  function openEdit(r) {
-    // Cari data RKP terkait untuk pastikan pagu/pagu_bop terisi (dari rkp_id jika ada)
-    const rkpSrc = r.rkp_id ? rkpRows.find(x => x.id === r.rkp_id) : null
+  async function openEdit(r) {
+    // Ambil data RKP terkait langsung dari DB untuk pastikan pagu/pagu_bop selalu terisi
+    let rkpSrc = r.rkp_id ? rkpRows.find(x => x.id === r.rkp_id) : null
+    if (!rkpSrc && r.rkp_id) {
+      const { data: rd } = await supabase.from('rkp_dbhcht').select('*').eq('id', r.rkp_id).maybeSingle()
+      rkpSrc = rd
+    }
     setForm({
       ...r,
-      pagu:     rkpSrc ? rkpSrc.pagu || 0    : r.pagu || 0,
-      pagu_bop: rkpSrc ? rkpSrc.pagu_bop || 0: r.pagu_bop || 0,
-      volume:   rkpSrc ? rkpSrc.volume || ''  : r.volume || '',
-      satuan:   rkpSrc ? rkpSrc.satuan || ''  : r.satuan || '',
+      pagu:     rkpSrc ? (rkpSrc.pagu     || 0)  : (r.pagu     || 0),
+      pagu_bop: rkpSrc ? (rkpSrc.pagu_bop || 0)  : (r.pagu_bop || 0),
+      volume:   rkpSrc ? (rkpSrc.volume   || '')  : (r.volume   || ''),
+      satuan:   rkpSrc ? (rkpSrc.satuan   || '')  : (r.satuan   || ''),
       realisasi_volume:     String(r.realisasi_volume||''),
       realisasi_pagu_utama: String(r.realisasi_pagu_utama||''),
       realisasi_bop:        String(r.realisasi_bop||''),
