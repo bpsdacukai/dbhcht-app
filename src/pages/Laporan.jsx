@@ -723,66 +723,86 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
   BIDANG.forEach(b => { byBidang[b.id] = normalRows.filter(r => r.bidang_id === b.id) })
-  const totalPagu = rows.reduce((s, r) => s + (r.pagu || 0), 0)
-  const totalReal = rows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
+  const totalPaguUtama = rows.reduce((s, r) => s + (r.pagu || 0), 0)
+  const totalBop = rows.reduce((s, r) => s + (r.pagu_bop || 0), 0)
+  const totalPagu = totalPaguUtama + totalBop
+  const totalRealPagu = rows.reduce((s, r) => s + (r.realisasi_pagu_utama || 0), 0)
+  const totalRealBop = rows.reduce((s, r) => s + (r.realisasi_bop || 0), 0)
+  const totalReal = totalRealPagu + totalRealBop
+  const totalSisa = totalPagu - totalReal
   return (
-    <div style={{ ...S.doc, maxWidth: 1100 }}>
+    <div style={{ ...S.doc, maxWidth: 1300 }}>
       <div style={{ textAlign: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>LAPORAN REALISASI PENGGUNAAN</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU (DBH CHT)</div>
         <div style={{ fontWeight: 'bold', fontSize: 12 }}>{label} TAHUN ANGGARAN {tahun}</div>
         <div style={{ fontStyle: 'italic', fontSize: 10, marginTop: 2 }}>{kabupaten}</div>
       </div>
-      <table style={{ ...S.tbl, fontSize: 9 }}>
+      <table style={{ ...S.tbl, fontSize: 8.5 }}>
         <thead>
           <tr>
-            <th style={{ ...S.th, width: 28 }}>(1)<br />No</th>
+            <th style={{ ...S.th, width: 24 }}>(1)<br />No</th>
             <th style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
-            <th style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
-            <th style={{ ...S.th, width: 35 }}>(5)<br />Vol</th>
-            <th style={{ ...S.th, width: 35 }}>(6)<br />Sat</th>
-            <th style={{ ...S.th, width: 82 }}>(7)<br />Pagu Kegiatan (Rp)</th>
-            <th style={{ ...S.th, width: 72 }}>(8)<br />Rencana Output</th>
-            <th style={{ ...S.th, width: 82 }}>(9)<br />Realisasi Dana (Rp)</th>
-            <th style={{ ...S.th, width: 55 }}>(10)<br />Realisasi Fisik (%)</th>
+            <th style={{ ...S.th, width: 60 }}>(3)<br />Pagu Utama (Rp)</th>
+            <th style={{ ...S.th, width: 55 }}>(4)<br />BOP (Rp)</th>
+            <th style={{ ...S.th, width: 40 }}>(5)<br />Real. Volume</th>
+            <th style={{ ...S.th, width: 60 }}>(6)<br />Real. Pagu Utama (Rp)</th>
+            <th style={{ ...S.th, width: 55 }}>(7)<br />Real. BOP (Rp)</th>
+            <th style={{ ...S.th, width: 45 }}>(8)<br />Capaian Realisasi (%)</th>
+            <th style={{ ...S.th, width: 60 }}>(9)<br />Sisa Anggaran (Rp)</th>
+            <th style={{ ...S.th, width: 40 }}>(10)<br />Real. Fisik (%)</th>
             <th style={S.th}>Ket</th>
           </tr>
         </thead>
         <tbody>
           {BIDANG.map((b, bi) => {
-            const bRows  = byBidang[b.id] || []
-            const bPagu  = bRows.reduce((s, r) => s + (r.pagu || 0), 0)
-            const bReal  = bRows.reduce((s, r) => s + (r.realisasi_keu || 0), 0)
+            const bRows = byBidang[b.id] || []
+            const bPaguUtama = bRows.reduce((s, r) => s + (r.pagu || 0), 0)
+            const bBop = bRows.reduce((s, r) => s + (r.pagu_bop || 0), 0)
+            const bPagu = bPaguUtama + bBop
+            const bRealPagu = bRows.reduce((s, r) => s + (r.realisasi_pagu_utama || 0), 0)
+            const bRealBop = bRows.reduce((s, r) => s + (r.realisasi_bop || 0), 0)
+            const bReal = bRealPagu + bRealBop
+            const bSisa = bPagu - bReal
             return [
               <tr key={'h-' + b.id} style={{ background: '#c6e0b4' }}>
                 <td style={{ ...S.td, ...S.bold, ...S.center }}>{String.fromCharCode(65 + bi)}.</td>
                 <td colSpan={10} style={{ ...S.td, ...S.bold }}>{b.label}</td>
               </tr>,
-              ...bRows.map((r, ri) => (
-                <tr key={r.id}>
-                  <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
-                  <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                  <td style={S.td}>{r.sub_kegiatan || ''}</td>
-                  <td style={S.td}>{r.kode_rekening || ''}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
-                  <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
-                  <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
-                  <td style={S.td}>{r.keterangan || ''}</td>
-                </tr>
-              )),
+              ...bRows.map((r, ri) => {
+                const rPagu = (r.pagu || 0) + (r.pagu_bop || 0)
+                const rReal = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
+                const rPct  = rPagu > 0 ? (rReal / rPagu * 100) : 0
+                const rSisa = rPagu - rReal
+                return (
+                  <tr key={r.id}>
+                    <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
+                    <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
+                    <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
+                    <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_bop || 0)}</td>
+                    <td style={{ ...S.td, ...S.center }}>{r.realisasi_volume || 0} {r.satuan || ''}</td>
+                    <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_pagu_utama || 0)}</td>
+                    <td style={{ ...S.td, ...S.right }}>{fmt(r.realisasi_bop || 0)}</td>
+                    <td style={{ ...S.td, ...S.center }}>{rPct.toFixed(1)}%</td>
+                    <td style={{ ...S.td, ...S.right, color: rSisa < 0 ? '#c00' : undefined }}>{fmt(rSisa)}</td>
+                    <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
+                    <td style={S.td}>{r.keterangan || ''}</td>
+                  </tr>
+                )
+              }),
               bRows.length === 0 ? (
                 <tr key={'e-' + b.id}><td colSpan={11} style={{ ...S.td, ...S.center, color: '#999', fontStyle: 'italic' }}>—</td></tr>
               ) : null,
               <tr key={'t-' + b.id} style={{ background: '#e2efda', fontWeight: 'bold' }}>
-                <td colSpan={6} style={{ ...S.td, ...S.right }}>Total {b.label}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(bPagu)}</td>
+                <td colSpan={2} style={{ ...S.td, ...S.right }}>Total {b.label}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bPaguUtama)}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bBop)}</td>
                 <td style={S.td} />
-                <td style={{ ...S.td, ...S.right }}>{fmt(bReal)}</td>
-                <td style={{ ...S.td, ...S.center }}>{bPagu > 0 ? ((bReal / bPagu) * 100).toFixed(1) : '0.0'}%</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bRealPagu)}</td>
+                <td style={{ ...S.td, ...S.right }}>{fmt(bRealBop)}</td>
+                <td style={{ ...S.td, ...S.center }}>{bPagu > 0 ? (bReal / bPagu * 100).toFixed(1) : '0.0'}%</td>
+                <td style={{ ...S.td, ...S.right, color: bSisa < 0 ? '#c00' : undefined }}>{fmt(bSisa)}</td>
+                <td style={S.td} />
                 <td style={S.td} />
               </tr>,
             ]
@@ -792,36 +812,46 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
               <td style={{ ...S.td, ...S.bold, ...S.center }}>D.</td>
               <td colSpan={10} style={{ ...S.td, ...S.bold }}>Kegiatan Koordinasi Pengelolaan DBH CHT</td>
             </tr>,
-            ...koorRows.map((r, ri) => (
-              <tr key={r.id}>
-                <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
-                <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
-                <td style={S.td}>{r.sub_kegiatan || ''}</td>
-                <td style={S.td}>{r.kode_rekening || ''}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.volume || ''}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.satuan || ''}</td>
-                <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
-                <td style={S.td}>{r.target_output || r.capaian_output || ''}</td>
-                <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_keu || 0)}</td>
-                <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
-                <td style={S.td}>{r.keterangan || ''}</td>
-              </tr>
-            )),
+            ...koorRows.map((r, ri) => {
+              const rPagu = (r.pagu || 0) + (r.pagu_bop || 0)
+              const rReal = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
+              const rPct  = rPagu > 0 ? (rReal / rPagu * 100) : 0
+              const rSisa = rPagu - rReal
+              return (
+                <tr key={r.id}>
+                  <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
+                  <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}</div>}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu_bop || 0)}</td>
+                  <td style={{ ...S.td, ...S.center }}>{r.realisasi_volume || 0} {r.satuan || ''}</td>
+                  <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(r.realisasi_pagu_utama || 0)}</td>
+                  <td style={{ ...S.td, ...S.right }}>{fmt(r.realisasi_bop || 0)}</td>
+                  <td style={{ ...S.td, ...S.center }}>{rPct.toFixed(1)}%</td>
+                  <td style={{ ...S.td, ...S.right, color: rSisa < 0 ? '#c00' : undefined }}>{fmt(rSisa)}</td>
+                  <td style={{ ...S.td, ...S.center }}>{r.realisasi_fisik || 0}%</td>
+                  <td style={S.td}>{r.keterangan || ''}</td>
+                </tr>
+              )
+            }),
           ]}
           <tr style={{ background: '#a9d18e', fontWeight: 'bold', fontSize: 10 }}>
-            <td colSpan={6} style={{ ...S.td, ...S.right }}>TOTAL</td>
-            <td style={{ ...S.td, ...S.right }}>{fmt(totalPagu)}</td>
+            <td colSpan={2} style={{ ...S.td, ...S.right }}>TOTAL</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(totalPaguUtama)}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(totalBop)}</td>
             <td style={S.td} />
-            <td style={{ ...S.td, ...S.right }}>{fmt(totalReal)}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(totalRealPagu)}</td>
+            <td style={{ ...S.td, ...S.right }}>{fmt(totalRealBop)}</td>
             <td style={{ ...S.td, ...S.center }}>
-              {totalPagu > 0 ? ((totalReal / totalPagu) * 100).toFixed(1) : '0.0'}%
+              {totalPagu > 0 ? (totalReal / totalPagu * 100).toFixed(1) : '0.0'}%
             </td>
+            <td style={{ ...S.td, ...S.right, color: totalSisa < 0 ? '#c00' : undefined }}>{fmt(totalSisa)}</td>
+            <td style={S.td} />
             <td style={S.td} />
           </tr>
         </tbody>
       </table>
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
-        *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan
+        *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan. Sisa Anggaran = (Pagu Utama + BOP) − (Realisasi Pagu Utama + Realisasi BOP).
       </div>
     </div>
   )
@@ -913,16 +943,33 @@ function mergeRealisasi(rows) {
   for (const r of rows) {
     const key = r.bidang_id + '|' + r.program + '|' + r.kegiatan + '|' + r.sub_kegiatan + '|' + (r.is_koordinasi ? '1' : '0')
     if (!map[key]) {
-      map[key] = { ...r, realisasi_keu: 0, realisasi_fisik: 0, _count: 0 }
+      map[key] = {
+        ...r,
+        realisasi_volume: 0, realisasi_pagu_utama: 0, realisasi_bop: 0,
+        realisasi_fisik: 0, pagu: 0, pagu_bop: 0, _count: 0,
+      }
     }
-    map[key].realisasi_keu += (r.realisasi_keu || 0)
-    map[key].realisasi_fisik += (r.realisasi_fisik || 0)
+    map[key].realisasi_volume     += (r.realisasi_volume || 0)
+    map[key].realisasi_pagu_utama += (r.realisasi_pagu_utama || 0)
+    map[key].realisasi_bop        += (r.realisasi_bop || 0)
+    map[key].realisasi_fisik      += (r.realisasi_fisik || 0)
+    // Pagu Utama & BOP diambil dari RKP terkait (rkp_id) saat input Realisasi.
+    // Nilainya sama di setiap baris triwulan untuk kegiatan yang sama,
+    // jadi cukup di-set (bukan dijumlah berulang) per kegiatan unik.
+    map[key].pagu     = r.pagu || 0
+    map[key].pagu_bop = r.pagu_bop || 0
     map[key]._count++
   }
-  return Object.values(map).map(r => ({
-    ...r,
-    realisasi_fisik: r._count > 0 ? (r.realisasi_fisik / r._count) : 0,
-  }))
+  return Object.values(map).map(r => {
+    const paguT = (r.pagu || 0) + (r.pagu_bop || 0)
+    const realT = (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
+    return {
+      ...r,
+      realisasi_fisik: r._count > 0 ? (r.realisasi_fisik / r._count) : 0,
+      capaian_pct: paguT > 0 ? (realT / paguT * 100) : 0,
+      sisa_anggaran: paguT - realT,
+    }
+  })
 }
 
 // ══════════════════════════════════════════════════════════════
