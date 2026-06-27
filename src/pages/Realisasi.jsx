@@ -153,7 +153,11 @@ export default function Realisasi() {
       realisasi_volume:     Number(form.realisasi_volume)||0,
       realisasi_pagu_utama: Number(form.realisasi_pagu_utama)||0,
       realisasi_bop:        Number(form.realisasi_bop)||0,
-      realisasi_fisik:      Number(form.realisasi_fisik)||0,
+      realisasi_fisik:      (() => {
+        const pT = (Number(form.pagu)||0) + (Number(form.pagu_bop)||0)
+        const rT = (Number(form.realisasi_pagu_utama)||0) + (Number(form.realisasi_bop)||0)
+        return pT > 0 ? parseFloat((rT/pT*100).toFixed(2)) : 0
+      })(),
       capaian_output:  form.capaian_output||'',
       is_koordinasi:   form.is_koordinasi,
       keterangan:      form.keterangan,
@@ -388,8 +392,16 @@ export default function Realisasi() {
 
               <div className="form-row">
                 <div className="form-group" style={{flex:1}}>
-                  <label className="form-label">Realisasi Fisik (%)</label>
-                  <input className="form-control" type="number" min="0" max="100" value={form.realisasi_fisik} onChange={e=>setForm({...form,realisasi_fisik:e.target.value})} />
+                  <label className="form-label">Realisasi Fisik (%) <span style={{fontSize:'.7rem',color:'var(--accent)',fontWeight:400}}>⚡ Otomatis</span></label>
+                  <input className="form-control" readOnly
+                    value={(() => {
+                      const pT = (Number(form.pagu)||0) + (Number(form.pagu_bop)||0)
+                      const rT = (Number(form.realisasi_pagu_utama)||0) + (Number(form.realisasi_bop)||0)
+                      return pT > 0 ? (rT/pT*100).toFixed(2) : '0.00'
+                    })()}
+                    style={{background:'var(--bg2)',fontWeight:700,color:'var(--accent)'}}
+                  />
+                  <div style={{fontSize:'.7rem',color:'var(--text2)',marginTop:2}}>= (Real. Pagu Utama + Real. BOP) ÷ (Pagu + BOP) × 100</div>
                 </div>
                 <div className="form-group" style={{flex:2}}>
                   <label className="form-label">Capaian Output</label>
