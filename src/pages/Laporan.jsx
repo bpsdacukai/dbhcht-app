@@ -1,60 +1,70 @@
-import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, fmtRp } from '../lib/constants.js'
 
-// ── helpers ────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
-const KOTA = 'Kota Batu'
-const KODE_WILAYAH = '35.79.121'
 
-// Format nomor BA asistensi: 027/001/HA-RKP/35.79.121/2026
-function fmtNomorAsist(noBA, tanggal) {
-  const tgl   = tanggal ? new Date(tanggal) : new Date()
-  const tahun = tgl.getFullYear()
-  const urut  = noBA ? String(noBA).padStart(3, '0') : '___'
-  return `027/${urut}/HA-RKP/${KODE_WILAYAH}/${tahun}`
-}
-
-// Format nomor BA rekonsiliasi: 027/001/HA-Rekon/35.79.121/2026
-function fmtNomorRekon(noBA, tanggal) {
-  const tgl   = tanggal ? new Date(tanggal) : new Date()
-  const tahun = tgl.getFullYear()
-  const urut  = noBA ? String(noBA).padStart(3, '0') : '___'
-  return `027/${urut}/HA-Rekon/${KODE_WILAYAH}/${tahun}`
-}
-
-function fmtHari(tgl) {
-  if (!tgl) return '__________'
-  return new Date(tgl).toLocaleDateString('id-ID', { weekday: 'long' })
-}
-function fmtTgl(tgl) {
-  if (!tgl) return '__________ bulan __________ tahun __________'
-  return new Date(tgl).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-}
-function getYear(tgl) {
-  return tgl ? new Date(tgl).getFullYear() : new Date().getFullYear()
+function printHtml(htmlContent, title = 'Dokumen') {
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:210mm;height:297mm;border:none;visibility:hidden;'
+  document.body.appendChild(iframe)
+  const doc = iframe.contentDocument || iframe.contentWindow.document
+  doc.open()
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:10pt;color:#111;background:#fff}
+@page{size:A4 landscape;margin:12mm 10mm}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #999;padding:3px 5px;font-size:8pt;vertical-align:middle}
+th{background:#e2efda;font-weight:bold;text-align:center}
+.no-print-inner,button{display:none!important}
+h1,h2,h3{font-family:Arial,sans-serif}
+</style></head><body>${htmlContent}</body></html>`)
+  doc.close()
+  const doprint = () => { iframe.contentWindow.focus(); iframe.contentWindow.print(); setTimeout(()=>{ try{document.body.removeChild(iframe)}catch(e){} },1200) }
+  if (doc.readyState === 'complete') { setTimeout(doprint, 300) }
+  else { iframe.onload = () => setTimeout(doprint, 300) }
 }
 
-// ── shared print styles ────────────────────────────────────────
-const S = {
-  doc: {
-    fontFamily: 'Arial, sans-serif', fontSize: '11px',
-    lineHeight: 1.5, color: '#000', background: '#fff',
-    padding: '24px 28px', maxWidth: 794, margin: '0 auto',
-  },
-  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8 },
-  td:  { border: '1px solid #000', padding: '3px 6px', verticalAlign: 'top' },
-  th:  { border: '1px solid #000', padding: '3px 6px', background: '#d9d9d9',
-         fontWeight: 'bold', textAlign: 'center', verticalAlign: 'middle' },
-  bold: { fontWeight: 'bold' },
-  center: { textAlign: 'center' },
-  right:  { textAlign: 'right' },
+function printElementById(id, title) {
+  const el = document.getElementById(id)
+  if (!el) { alert('Elemen dokumen tidak ditemukan: ' + id); return }
+  printHtml(el.innerHTML, title)
 }
 
-// ── Tabel peserta (B. PELAKSANA) ───────────────────────────────
+// Overlay preview + tombol cetak via iframe
+function PrintPortal({ children, onClose, title, previewId }) {
+  function doPrint() {
+    const el = document.getElementById(previewId || '__pp__')
+    if (el) printHtml(el.innerHTML, title)
+  }
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.78)', zIndex:600, display:'flex', flexDirection:'column' }}>
+      <div style={{ background:'#1a3a1c', color:'#fff', padding:'10px 18px', display:'flex', alignItems:'center', gap:'1rem', flexShrink:0 }}>
+        <span style={{ fontWeight:600, fontSize:'.95rem' }}>{title}</span>
+        <div style={{ flex:1 }} />
+        <button onClick={doPrint}
+          style={{ background:'#52b788', color:'#fff', border:'none', padding:'8px 22px', borderRadius:5, cursor:'pointer', fontWeight:700, fontSize:'1rem' }}>
+          🖨️ Cetak
+        </button>
+        <button onClick={onClose}
+          style={{ background:'transparent', color:'#ccc', border:'1px solid #3a5a3c', padding:'8px 14px', borderRadius:5, cursor:'pointer' }}>
+          ✕ Tutup
+        </button>
+      </div>
+      <div style={{ flex:1, overflow:'auto', background:'#c8c8c8', padding:'1.5rem', display:'flex', justifyContent:'center' }}>
+        <div id={previewId || '__pp__'}
+          style={{ background:'#fff', boxShadow:'0 4px 24px rgba(0,0,0,.35)', minWidth:500, maxWidth:900, padding:'10px', width:'100%' }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function TabelPeserta({ judul, peserta }) {
   const list = Array.isArray(peserta) ? peserta.filter(p => p.nama || p.jabatan) : []
   const rows = list.length > 0 ? list : [{ nama: '', jabatan: '' }]
@@ -963,66 +973,6 @@ function ensurePrintStyle() {
   document.head.appendChild(s)
 }
 
-function PrintPortal({ children, onClose, title }) {
-  const [printEl] = useState(() => {
-    ensurePrintStyle()
-    const el = document.createElement('div')
-    el.setAttribute('data-simdbh-print', '1')
-    el.style.cssText = 'display:none;position:absolute;top:0;left:0;width:100%;background:#fff;z-index:0;'
-    document.body.appendChild(el)
-    return el
-  })
-
-  useEffect(() => {
-    return () => {
-      if (printEl && document.body.contains(printEl)) {
-        document.body.removeChild(printEl)
-      }
-    }
-  }, [])
-
-  function doPrint() {
-    printEl.style.display = 'block'
-    window.print()
-    setTimeout(() => { printEl.style.display = 'none' }, 500)
-  }
-
-  return (
-    <>
-      <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.78)',
-        zIndex: 600, display: 'flex', flexDirection: 'column',
-      }}>
-        <div style={{
-          background: '#1a3a1c', color: '#fff', padding: '10px 18px',
-          display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0,
-        }}>
-          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{title}</span>
-          <div style={{ flex: 1 }} />
-          <button onClick={doPrint}
-            style={{ background: '#52b788', color: '#fff', border: 'none', padding: '8px 22px', borderRadius: 5, cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>
-            🖨️ Cetak
-          </button>
-          <button onClick={onClose}
-            style={{ background: 'transparent', color: '#ccc', border: '1px solid #3a5a3c', padding: '8px 14px', borderRadius: 5, cursor: 'pointer' }}>
-            ✕ Tutup
-          </button>
-        </div>
-        <div style={{ flex: 1, overflow: 'auto', background: '#c8c8c8', padding: '1.5rem' }}>
-          <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
-            {children}
-          </div>
-        </div>
-      </div>
-      {createPortal(
-        <div className="no-print-inner">{children}</div>,
-        printEl
-      )}
-    </>
-  )
-}
-
-// ══════════════════════════════════════════════════════════════
 //  MERGE REALISASI
 // ══════════════════════════════════════════════════════════════
 function mergeRealisasi(rows, rkpMap = {}) {
@@ -1116,10 +1066,8 @@ export default function Laporan() {
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
 
-  function doCetak() {
-    document.body.classList.add('printing-doc')
-    window.print()
-    setTimeout(() => document.body.classList.remove('printing-doc'), 800)
+  function doCetak(elementId, title) {
+    printElementById(elementId, title)
   }
 
   return (
@@ -1210,7 +1158,7 @@ export default function Laporan() {
       {menu === 'rekap_asis' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-rekap-asis', `Rekap Asistensi DBH CHT TA ${tahun}`)}>🖨️ Cetak Rekap</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-rekap-asis', `Rekap_Asistensi_DBH_CHT_${tahun}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-rekap-asis', `Rekap_Asistensi_DBH_CHT_${tahun}`)}>📊 Unduh Excel</button>
           </div>
@@ -1267,7 +1215,7 @@ export default function Laporan() {
       {menu === 'rekap_rekon' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-rekap-rekon', `Rekap Rekonsiliasi DBH CHT TA ${tahun}`)}>🖨️ Cetak Rekap</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-rekap-rekon', `Rekap_Rekonsiliasi_DBH_CHT_${tahun}${twFilter?'_Tw'+twFilter:''}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-rekap-rekon', `Rekap_Rekonsiliasi_DBH_CHT_${tahun}${twFilter?'_Tw'+twFilter:''}`)}>📊 Unduh Excel</button>
           </div>
@@ -1281,7 +1229,7 @@ export default function Laporan() {
       {menu === 'rkp' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-rkp', `RKP DBH CHT TA ${tahun} - ${jenis}`)}>🖨️ Cetak RKP</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-rkp', `RKP_DBH_CHT_${tahun}_${jenis}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-rkp', `RKP_DBH_CHT_${tahun}_${jenis}`)}>📊 Unduh Excel</button>
           </div>
@@ -1295,7 +1243,7 @@ export default function Laporan() {
       {menu === 'realisasi_tw' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-real-tw', `Laporan Realisasi TA ${tahun} ${twFilter ? 'Triwulan '+twFilter : 'Semua Triwulan'}`)}>🖨️ Cetak Laporan</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-real-tw', `Realisasi_${tahun}${twFilter?'_Tw'+twFilter:'_Semua'}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-tw', `Realisasi_${tahun}${twFilter?'_Tw'+twFilter:'_Semua'}`)}>📊 Unduh Excel</button>
           </div>
@@ -1311,7 +1259,7 @@ export default function Laporan() {
       {menu === 'realisasi_s1' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester I</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-real-s1', `Laporan Realisasi TA ${tahun} Semester I`)}>🖨️ Cetak Laporan Semester I</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-real-s1', `Realisasi_Semester_I_${tahun}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-s1', `Realisasi_Semester_I_${tahun}`)}>📊 Unduh Excel</button>
             <span className="chip">Triwulan I + II</span>
@@ -1326,7 +1274,7 @@ export default function Laporan() {
       {menu === 'realisasi_s2' && (
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', flexWrap:'wrap', alignItems: 'center' }}>
-            <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester II</button>
+            <button className="btn btn-primary" onClick={() => doCetak('doc-real-s2', `Laporan Realisasi TA ${tahun} Semester II`)}>🖨️ Cetak Laporan Semester II</button>
             <button className="btn btn-info" onClick={() => downloadWord('doc-real-s2', `Realisasi_Semester_II_${tahun}`)}>📄 Unduh Word</button>
             <button className="btn btn-gold" onClick={() => downloadExcel('doc-real-s2', `Realisasi_Semester_II_${tahun}`)}>📊 Unduh Excel</button>
             <span className="chip">Triwulan I + II + III + IV</span>
