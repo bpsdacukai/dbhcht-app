@@ -201,7 +201,7 @@ function TtdWalikota({ kota = KOTA, tanggal }) {
         <div>Koordinator Penggunaan DBH CHT</div>
         <div style={{fontWeight:700}}>{kota}</div>
         <div style={{height:64,margin:'6px 0 2px'}} />
-        <div style={{fontWeight:700,borderTop:'1px solid #000',paddingTop:4}}>
+        <div style={{fontWeight:700,paddingTop:4}}>
           (...................................)
         </div>
         <div style={{fontSize:10,marginTop:2}}>NIP. ...........................</div>
@@ -210,7 +210,7 @@ function TtdWalikota({ kota = KOTA, tanggal }) {
         <div>{kota}, {tgl}</div>
         <div style={{fontWeight:700,textTransform:'uppercase',letterSpacing:'.03em',marginTop:2}}>WALI KOTA BATU</div>
         <div style={{height:64,margin:'6px 0 2px'}} />
-        <div style={{fontWeight:700,borderTop:'1px solid #000',paddingTop:4}}>
+        <div style={{fontWeight:700,paddingTop:4}}>
           (...................................)
         </div>
         <div style={{fontSize:10,marginTop:2}}>NIP. ...........................</div>
