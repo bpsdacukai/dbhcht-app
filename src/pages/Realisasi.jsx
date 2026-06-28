@@ -26,14 +26,20 @@ export default function Realisasi() {
   const [twTab,   setTwTab]   = useState('I')
   const [bidTab,  setBidTab]  = useState(null)
   const [loading, setLoading] = useState(false)
-  const [paguOpd, setPaguOpd] = useState(null)
+  const [paguOpd,   setPaguOpd]   = useState(null)
+  const [paguDBH, setPaguDBH] = useState(0)        // total_pagu dari pagu_alokasi
 
   useEffect(() => {
     if (!bidTab && profile) setBidTab(isSekretariat ? 'kesmas' : (profile.bidang||'kesmas'))
   }, [profile])
 
   useEffect(() => { if (bidTab) load() }, [tahun, jenis, bidTab])
-  useEffect(() => { if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p=>setPaguOpd(p)) }, [profile, tahun, jenis])
+  useEffect(() => {
+    if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p => setPaguOpd(p))
+    // Ambil total pagu DBH CHT untuk capaian persen global
+    supabase.from('pagu_alokasi').select('total_pagu').eq('tahun', tahun).eq('jenis', jenis)
+      .maybeSingle().then(({ data }) => setPaguDBH(data?.total_pagu || 0))
+  }, [profile, tahun, jenis])
 
   async function load() {
     // Load RKP dulu — jadi rkpRows tersedia saat render
@@ -75,8 +81,10 @@ export default function Realisasi() {
 
   const sem1       = sumRealKeu(rows.filter(r=>['I','II'].includes(r.triwulan))) + sumRealBop(rows.filter(r=>['I','II'].includes(r.triwulan)))
   const semAll     = sumRealKeu(rows) + sumRealBop(rows)
-  const totalPaguOpd = (paguOpd?.pagu_utama||0) + (paguOpd?.bop||0)
-  const pctCapaian   = totalPaguOpd > 0 ? (semAll/totalPaguOpd*100) : 0
+  const totalPaguOpd  = (paguOpd?.pagu_utama||0) + (paguOpd?.bop||0)
+  // Capaian global = Total Realisasi Semester / Total Pagu DBH CHT
+  const pctCapaian    = paguDBH > 0 ? (semAll / paguDBH * 100) : 0
+  const pctCapaianS1  = paguDBH > 0 ? (sem1   / paguDBH * 100) : 0
 
   const canEdit = isSekretariat
     || (profile?.role === 'opd' && (!bidTab || profile.bidang === bidTab || isKoor))
@@ -193,18 +201,30 @@ export default function Realisasi() {
         <button className="btn btn-outline btn-sm no-print" onClick={()=>window.print()}>🖨️ Cetak</button>
       </PageHeader>
 
-      <div className="g2 mb-2">
+      <div className="g4 mb-2" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
         <div className="stat-box">
-          <div className="stat-lbl">Realisasi Semester I (Tw I+II)</div>
-          <div className="stat-val" style={{color:'var(--info)'}}>{fmtRp(sem1)}</div>
-          <div className="stat-sub">{totalPaguOpd>0?fmtPct(sem1/totalPaguOpd*100):'0.0%'} dari pagu OPD</div>
+          <div className="stat-lbl">Realisasi Semester I (Rp)</div>
+          <div className="stat-val" style={{color:'var(--info)',fontSize:'.95rem'}}>{fmtRp(sem1)}</div>
+          <div className="stat-sub">Tw I + Tw II</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-lbl">Capaian Semester I (%)</div>
+          <div className="stat-val" style={{color:pctCapaianS1>=80?'var(--accent)':pctCapaianS1>=50?'var(--gold)':'var(--danger)',fontSize:'.95rem'}}>
+            {fmtPct(pctCapaianS1)}
+          </div>
+          <div className="stat-sub">= Sem I ÷ Pagu DBH CHT</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-lbl">Total Realisasi Kumulatif (Rp)</div>
+          <div className="stat-val" style={{color:'var(--info)',fontSize:'.95rem'}}>{fmtRp(semAll)}</div>
+          <div className="stat-sub">Semua Triwulan</div>
         </div>
         <div className="stat-box">
           <div className="stat-lbl">Capaian Realisasi (%)</div>
-          <div className="stat-val" style={{color:pctCapaian>=80?'var(--accent)':pctCapaian>=50?'var(--gold)':'var(--danger)'}}>
+          <div className="stat-val" style={{color:pctCapaian>=80?'var(--accent)':pctCapaian>=50?'var(--gold)':'var(--danger)',fontSize:'.95rem'}}>
             {fmtPct(pctCapaian)}
           </div>
-          <div className="stat-sub">Total: {fmtRp(semAll)}</div>
+          <div className="stat-sub">= Total Realisasi ÷ Pagu DBH CHT</div>
         </div>
       </div>
 
