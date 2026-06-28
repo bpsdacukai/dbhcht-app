@@ -957,22 +957,6 @@ function downloadExcel(elementId, filename) {
 // ══════════════════════════════════════════════════════════════
 //  PRINT INFRASTRUCTURE
 // ══════════════════════════════════════════════════════════════
-function ensurePrintStyle() {
-  if (document.getElementById('sdb-ps')) return
-  const s = document.createElement('style')
-  s.id = 'sdb-ps'
-  s.textContent = [
-    '@media print {',
-    '  body { margin: 0 !important; }',
-    '  body > *:not([data-simdbh-print]) { display: none !important; visibility: hidden !important; }',
-    '  [data-simdbh-print] { display: block !important; visibility: visible !important; position: static !important; }',
-    '  [data-simdbh-print] .no-print-inner { display: none !important; }',
-    '}',
-    '@page { size: A4; margin: 15mm 12mm; }',
-  ].join('\n')
-  document.head.appendChild(s)
-}
-
 //  MERGE REALISASI
 // ══════════════════════════════════════════════════════════════
 function mergeRealisasi(rows, rkpMap = {}) {
