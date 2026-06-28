@@ -1,9 +1,59 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, fmtRp } from '../lib/constants.js'
 
+// ── helpers ────────────────────────────────────────────────────
+const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
+const KOTA = 'Kota Batu'
+const KODE_WILAYAH = '35.79.121'
+
+// Format nomor BA asistensi: 027/001/HA-RKP/35.79.121/2026
+function fmtNomorAsist(noBA, tanggal) {
+  const tgl   = tanggal ? new Date(tanggal) : new Date()
+  const tahun = tgl.getFullYear()
+  const urut  = noBA ? String(noBA).padStart(3, '0') : '___'
+  return `027/${urut}/HA-RKP/${KODE_WILAYAH}/${tahun}`
+}
+
+// Format nomor BA rekonsiliasi: 027/001/HA-Rekon/35.79.121/2026
+function fmtNomorRekon(noBA, tanggal) {
+  const tgl   = tanggal ? new Date(tanggal) : new Date()
+  const tahun = tgl.getFullYear()
+  const urut  = noBA ? String(noBA).padStart(3, '0') : '___'
+  return `027/${urut}/HA-Rekon/${KODE_WILAYAH}/${tahun}`
+}
+
+function fmtHari(tgl) {
+  if (!tgl) return '__________'
+  return new Date(tgl).toLocaleDateString('id-ID', { weekday: 'long' })
+}
+function fmtTgl(tgl) {
+  if (!tgl) return '__________ bulan __________ tahun __________'
+  return new Date(tgl).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+function getYear(tgl) {
+  return tgl ? new Date(tgl).getFullYear() : new Date().getFullYear()
+}
+
+// ── shared print styles ────────────────────────────────────────
+const S = {
+  doc: {
+    fontFamily: 'Arial, sans-serif', fontSize: '11px',
+    lineHeight: 1.5, color: '#000', background: '#fff',
+    padding: '24px 28px', maxWidth: 794, margin: '0 auto',
+  },
+  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8 },
+  td:  { border: '1px solid #000', padding: '3px 6px', verticalAlign: 'top' },
+  th:  { border: '1px solid #000', padding: '3px 6px', background: '#d9d9d9',
+         fontWeight: 'bold', textAlign: 'center', verticalAlign: 'middle' },
+  bold: { fontWeight: 'bold' },
+  center: { textAlign: 'center' },
+  right:  { textAlign: 'right' },
+}
+
+// ── Tabel peserta (B. PELAKSANA) ───────────────────────────────
 
 function printHtml(htmlContent, title = 'Dokumen') {
   const iframe = document.createElement('iframe')
@@ -144,36 +194,31 @@ function TandaTangan({ ps, po, kota }) {
 // Kiri : Koordinator Penggunaan DBH CHT Kota Batu
 // Kanan: Kota + tanggal, WALI KOTA BATU
 function TtdWalikota({ kota = KOTA, tanggal }) {
-  const tgl = tanggal || new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })
+  const tgl = tanggal || new Date().toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'})
   return (
-    <div style={{ marginTop: 28, fontSize: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      {/* Kiri — Koordinator */}
-      <div style={{ textAlign: 'center', width: '44%' }}>
+    <div style={{marginTop:32,fontSize:11,display:'flex',justifyContent:'space-between',gap:24}}>
+      <div style={{textAlign:'center',width:'44%'}}>
         <div>Koordinator Penggunaan DBH CHT</div>
-        <div style={{ fontWeight: 600 }}>{kota}</div>
-        <div style={{ height: 56, borderBottom: '1px dotted #555', margin: '8px auto 4px', width: '80%' }} />
-        <div style={{ fontWeight: 600, textDecoration: 'underline' }}>
-          (......................................)
+        <div style={{fontWeight:700}}>{kota}</div>
+        <div style={{height:64,margin:'6px 0 2px'}} />
+        <div style={{fontWeight:700,borderTop:'1px solid #000',paddingTop:4}}>
+          (...................................)
         </div>
-        <div style={{ fontSize: 10, marginTop: 2 }}>NIP. .................................</div>
+        <div style={{fontSize:10,marginTop:2}}>NIP. ...........................</div>
       </div>
-      {/* Kanan — Wali Kota */}
-      <div style={{ textAlign: 'center', width: '44%' }}>
+      <div style={{textAlign:'center',width:'44%'}}>
         <div>{kota}, {tgl}</div>
-        <div style={{ fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: '.04em' }}>WALI KOTA BATU</div>
-        <div style={{ height: 56, borderBottom: '1px dotted #555', margin: '8px auto 4px', width: '80%' }} />
-        <div style={{ fontWeight: 600, textDecoration: 'underline' }}>
-          (......................................)
+        <div style={{fontWeight:700,textTransform:'uppercase',letterSpacing:'.03em',marginTop:2}}>WALI KOTA BATU</div>
+        <div style={{height:64,margin:'6px 0 2px'}} />
+        <div style={{fontWeight:700,borderTop:'1px solid #000',paddingTop:4}}>
+          (...................................)
         </div>
-        <div style={{ fontSize: 10, marginTop: 2 }}>NIP. .................................</div>
+        <div style={{fontSize:10,marginTop:2}}>NIP. ...........................</div>
       </div>
     </div>
   )
 }
 
-// ══════════════════════════════════════════════════════════════
-//  HASIL ASISTENSI
-// ══════════════════════════════════════════════════════════════
 export function CetakAistensi({ data, kabupaten = KOTA }) {
   if (!data) return null
   const ps    = Array.isArray(data.peserta_sekretariat) ? data.peserta_sekretariat : []
