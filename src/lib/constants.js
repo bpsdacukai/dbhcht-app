@@ -68,6 +68,7 @@ export const SUB_KEGIATAN_KOORDINASI = [
 
 export const KODE_REKENING_BY_BIDANG = {
   kesmas: [
+    { kode:'3.27.07.2.01.0002', nama:'Pengembangan Kapasitas Kelembagaan Petani di Kecamatan dan Desa' },
     { kode:'3.27.07.2.01.0009', nama:'Diseminasi Informasi Teknis, Sosial, Ekonomi dan Inovasi Pertanian' },
     { kode:'3.27.05.2.01.0001', nama:'Pengendalian Organisme Pengganggu Tumbuhan (OPT)' },
     { kode:'3.27.03.2.01.0003', nama:'Koordinasi dan Sinkronisasi Prasarana Pendukung Pertanian Lainnya' },
