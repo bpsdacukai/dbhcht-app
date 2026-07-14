@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, PROGRAM_BY_BIDANG, SUB_KEGIATAN_KOORDINASI, KODE_REKENING_BY_BIDANG, fmtRp, maxBop } from '../lib/constants.js'
 import { Modal, EmptyRow, DelBtn, EditBtn, PageHeader } from '../components/UI.jsx'
 import { getPaguOpd } from '../lib/supabase.js'
+import RKPPerubahan from './RKPPerubahan.jsx'
 
 const EMPTY = {
   bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'',
@@ -37,6 +38,10 @@ export default function RKP() {
   useEffect(() => {
     if (profile?.id) getPaguOpd(profile.id, tahun, jenis).then(p => setPaguOpd(p))
   }, [profile, tahun, jenis])
+
+  // Format RKP Perubahan berbeda dari RKP Murni (ada kolom Semula/Menjadi
+  // sesuai PMK 22/2026). Logika & tampilan RKP Murni di bawah ini tidak diubah.
+  if (jenis === 'Perubahan') return <RKPPerubahan />
 
   async function load() {
     let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('created_at')
