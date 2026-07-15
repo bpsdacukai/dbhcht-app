@@ -1045,12 +1045,50 @@ function ensurePrintStyle() {
     '  [data-simdbh-print] { display: block !important; visibility: visible !important; position: static !important; }',
     '  [data-simdbh-print] .no-print-inner { display: none !important; }',
     '}',
-    '@page { size: A4; margin: 1.25cm; }',
   ].join('\n')
   document.head.appendChild(s)
 }
 
+// Set orientasi kertas (portrait/landscape) sebelum window.print() dipanggil.
+// Menyuntik/mengganti isi <style id="sdb-page-orient"> — ukuran A4 & margin
+// 1,25cm tetap sama, cuma orientasinya yang berubah.
+function setPageOrientation(orientasi = 'portrait') {
+  let el = document.getElementById('sdb-page-orient')
+  if (!el) {
+    el = document.createElement('style')
+    el.id = 'sdb-page-orient'
+    document.head.appendChild(el)
+  }
+  el.textContent = `@page { size: A4 ${orientasi}; margin: 1.25cm; }`
+}
+
+// Kontrol Portrait/Landscape mirip pengaturan printer, dipasang di sebelah
+// tiap tombol Cetak.
+function OrientToggle({ value, onChange }) {
+  const opt = (v, label, icon) => (
+    <button type="button" className="no-print"
+      onClick={() => onChange(v)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '.3rem',
+        padding: '5px 10px', fontSize: '.75rem', borderRadius: 5, cursor: 'pointer',
+        border: '1px solid ' + (value === v ? 'var(--accent)' : 'var(--border)'),
+        background: value === v ? 'var(--accent)' : 'transparent',
+        color: value === v ? '#fff' : 'var(--text2)', fontWeight: value === v ? 700 : 400,
+      }}>
+      {icon} {label}
+    </button>
+  )
+  return (
+    <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '.3rem' }}>
+      <span style={{ fontSize: '.72rem', color: 'var(--text2)', marginRight: '.15rem' }}>Orientasi:</span>
+      {opt('portrait', 'Portrait', '📄')}
+      {opt('landscape', 'Landscape', '📃')}
+    </div>
+  )
+}
+
 function PrintPortal({ children, onClose, title }) {
+  const [orientasi, setOrientasi] = useState('portrait')
   const [printEl] = useState(() => {
     ensurePrintStyle()
     const el = document.createElement('div')
@@ -1069,6 +1107,7 @@ function PrintPortal({ children, onClose, title }) {
   }, [])
 
   function doPrint() {
+    setPageOrientation(orientasi)
     printEl.style.display = 'block'
     window.print()
     setTimeout(() => { printEl.style.display = 'none' }, 500)
@@ -1082,10 +1121,11 @@ function PrintPortal({ children, onClose, title }) {
       }}>
         <div style={{
           background: '#1a3a1c', color: '#fff', padding: '10px 18px',
-          display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0, flexWrap: 'wrap',
         }}>
           <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{title}</span>
           <div style={{ flex: 1 }} />
+          <OrientToggle value={orientasi} onChange={setOrientasi} />
           <button onClick={doPrint}
             style={{ background: '#52b788', color: '#fff', border: 'none', padding: '8px 22px', borderRadius: 5, cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }}>
             🖨️ Cetak
@@ -1173,6 +1213,7 @@ export default function Laporan() {
   const [perubahanRows, setPerubahanRows] = useState([])
   const [paguMurniInfo, setPaguMurniInfo] = useState(null)
   const [paguPerubahanInfo, setPaguPerubahanInfo] = useState(null)
+  const [orientasi, setOrientasi] = useState('portrait')
 
   useEffect(() => { if (profile) loadAll() }, [tahun, jenis, profile])
 
@@ -1220,7 +1261,14 @@ export default function Laporan() {
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
 
+  // Tabel RKP/RKP Perubahan lebih lebar (banyak kolom) — sarankan Landscape
+  // secara default saat pindah ke tab tsb, tapi tetap bisa diganti manual.
+  useEffect(() => {
+    setOrientasi(['rkp', 'rkp_perubahan'].includes(menu) ? 'landscape' : 'portrait')
+  }, [menu])
+
   function doCetak() {
+    setPageOrientation(orientasi)
     document.body.classList.add('printing-doc')
     window.print()
     setTimeout(() => document.body.classList.remove('printing-doc'), 800)
@@ -1313,8 +1361,9 @@ export default function Laporan() {
       {/* ── Rekap Asistensi ── */}
       {menu === 'rekap_asis' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapAisistensi rows={asisRows} tahun={tahun} kabupaten={KOTA} />
@@ -1368,8 +1417,9 @@ export default function Laporan() {
       {/* ── Rekap Rekonsiliasi ── */}
       {menu === 'rekap_rekon' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Rekap</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <RekapRekonsiliasi rows={rekonFiltered} tahun={tahun} triwulan={twFilter} kabupaten={KOTA} />
@@ -1380,8 +1430,9 @@ export default function Laporan() {
       {/* ── Cetak RKP ── */}
       {menu === 'rkp' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
@@ -1394,7 +1445,8 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP Perubahan</button>
-            <span className="chip" style={{ fontSize: '.72rem' }}>💡 Disarankan cetak orientasi Lanskap (Landscape) agar kolom tidak terpotong</span>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
+            {orientasi !== 'landscape' && <span className="chip" style={{ fontSize: '.72rem' }}>💡 Disarankan orientasi Landscape agar kolom tidak terpotong</span>}
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRKPPerubahan
@@ -1409,8 +1461,9 @@ export default function Laporan() {
       {/* ── Realisasi Per Triwulan ── */}
       {menu === 'realisasi_tw' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={mergeRealisasi(realTw, rkpMap)} tahun={tahun}
@@ -1423,8 +1476,9 @@ export default function Laporan() {
       {/* ── Realisasi Semester I ── */}
       {menu === 'realisasi_s1' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester I</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
             <span className="chip">Triwulan I + II</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
@@ -1436,8 +1490,9 @@ export default function Laporan() {
       {/* ── Realisasi Semester II ── */}
       {menu === 'realisasi_s2' && (
         <>
-          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester II</button>
+            <OrientToggle value={orientasi} onChange={setOrientasi} />
             <span className="chip">Triwulan I + II + III + IV</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
