@@ -207,6 +207,12 @@ tbody tr:hover { background: var(--bg3); }
 
 /* ── Print ────────────────────────────────────────────────────── */
 
+/* Margin kertas A4: rata 1,25cm di semua sisi (atas/bawah/kiri/kanan).
+   @page tidak bisa di-scope per elemen — berlaku untuk seluruh sesi cetak,
+   jadi nilai ini dibuat sama dengan @page di ensurePrintStyle() (Laporan.jsx)
+   supaya konsisten baik untuk dokumen doc-printable maupun overlay BA. */
+@page { size: A4; margin: 1.25cm; }
+
 /* ── Cetak halaman laporan (non-overlay: Rekap, RKP, Realisasi) ── */
 @media print {
   .doc-print-area { display: block !important; }
@@ -237,9 +243,33 @@ tbody tr:hover { background: var(--bg3); }
     margin: 0; border: none; box-shadow: none;
   }
 
+  /* Konten dokumen: lepas padding & max-width layar (mis. 1050px untuk
+     tabel RKP/RKP Perubahan yang lebar) dan paksa mengikuti 100% lebar
+     area cetak A4 (yang sudah dikurangi margin 1,25cm oleh @page di atas).
+     margin:0 auto menjaga posisinya tetap di tengah halaman (rata kiri=kanan). */
+  .doc-printable > div {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Judul dokumen (baris 1-4: nama dokumen, DBH CHT, Tahun Anggaran, Kabupaten/Kota)
+     tetap center terhadap lebar halaman karena kontainernya sudah full width + auto margin */
+  .doc-printable > div > div:first-child { text-align: center !important; }
+
+  /* Tabel selalu mengikuti 100% lebar kertas (dalam batas margin 1,25cm)
+     supaya tidak pernah meluber ke luar kertas A4 */
+  .doc-printable table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto;
+  }
+
   /* ── Rapikan garis tabel: cegah baris terpotong di batas halaman
      (baris yang terpotong membuat garis atas/bawahnya hilang/terputus) ── */
-  .doc-printable table { border-collapse: collapse !important; width: 100%; }
+  .doc-printable table { border-collapse: collapse !important; }
   .doc-printable table, .doc-printable th, .doc-printable td {
     border-color: #000 !important;
   }
