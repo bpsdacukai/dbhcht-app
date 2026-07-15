@@ -210,12 +210,10 @@ tbody tr:hover { background: var(--bg3); }
 /* ── Cetak halaman laporan (non-overlay: Rekap, RKP, Realisasi) ── */
 @media print {
   .doc-print-area { display: block !important; }
-  /* Sembunyikan semua kecuali area dokumen dan overlay portal */
-  body > *:not([data-simdbh-print]) .no-print { display: none !important; }
 }
 
 @media print {
-  /* Elemen umum yang disembunyikan */
+  /* Elemen umum yang disembunyikan saat mode cetak apapun aktif */
   .topbar, .sidebar, .notif-wrap, .no-print { display: none !important; }
   .main-content { padding: 0; }
   .card { break-inside: avoid; }
@@ -224,14 +222,34 @@ tbody tr:hover { background: var(--bg3); }
   /* Saat PrintPortal aktif, body memiliki [data-simdbh-print] child */
   /* CSS ini di-handle oleh ensurePrintStyle() di Laporan.jsx */
 
-  /* ── Cetak halaman laporan langsung (Rekap, RKP, Realisasi) ── */
-  /* Hanya .doc-printable yang dicetak, semua elemen lain tersembunyi */
-  body.printing-doc .app-shell,
-  body.printing-doc .layout,
-  body.printing-doc .topbar,
-  body.printing-doc .sidebar { display: none !important; }
-  body.printing-doc .doc-printable { display: block !important; }
+  /* ── Cetak halaman laporan langsung (Rekap, RKP, RKP Perubahan, Realisasi) ──
+     PENTING: tidak boleh men-display:none elemen INDUK dari .doc-printable
+     (mis. .app-shell/.layout), karena display:none pada induk membuat SEMUA
+     turunannya (termasuk .doc-printable) ikut tidak dirender sama sekali,
+     walau .doc-printable sendiri diberi display:block!important. Sebagai
+     gantinya pakai teknik visibility, yang bisa di-override oleh turunan. */
+  body.printing-doc * { visibility: hidden !important; }
+  body.printing-doc .doc-printable,
+  body.printing-doc .doc-printable * { visibility: visible !important; }
+  body.printing-doc .doc-printable {
+    display: block !important;
+    position: absolute; left: 0; top: 0; width: 100%;
+    margin: 0; border: none; box-shadow: none;
+  }
+
+  /* ── Rapikan garis tabel: cegah baris terpotong di batas halaman
+     (baris yang terpotong membuat garis atas/bawahnya hilang/terputus) ── */
+  .doc-printable table { border-collapse: collapse !important; width: 100%; }
+  .doc-printable table, .doc-printable th, .doc-printable td {
+    border-color: #000 !important;
+  }
+  .doc-printable tr, .doc-printable td, .doc-printable th {
+    page-break-inside: avoid !important; break-inside: avoid !important;
+  }
+  .doc-printable thead { display: table-header-group; }
+  .doc-printable tfoot { display: table-footer-group; }
 }
+
 
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 768px) {
