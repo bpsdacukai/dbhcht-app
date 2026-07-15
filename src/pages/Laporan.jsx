@@ -1045,7 +1045,7 @@ function ensurePrintStyle() {
     '  [data-simdbh-print] { display: block !important; visibility: visible !important; position: static !important; }',
     '  [data-simdbh-print] .no-print-inner { display: none !important; }',
     '}',
-    '@page { size: A4; margin: 15mm 12mm; }',
+    '@page { size: A4; margin: 1.25cm; }',
   ].join('\n')
   document.head.appendChild(s)
 }
