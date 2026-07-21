@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { BIDANG, KOORDINASI, fmtRp } from '../lib/constants.js'
+import { Modal } from '../components/UI.jsx'
 
 // ── helpers ────────────────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
@@ -45,10 +46,10 @@ const S = {
     lineHeight: 1.5, color: '#000', background: '#fff',
     padding: '24px 28px', maxWidth: 794, margin: '0 auto',
   },
-  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8 },
-  td:  { border: '1px solid #000', padding: '3px 6px', verticalAlign: 'top' },
+  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8, tableLayout: 'fixed' },
+  td:  { border: '1px solid #000', padding: '3px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' },
   th:  { border: '1px solid #000', padding: '3px 6px', background: '#d9d9d9',
-         fontWeight: 'bold', textAlign: 'center', verticalAlign: 'middle' },
+         fontWeight: 'bold', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' },
   bold: { fontWeight: 'bold' },
   center: { textAlign: 'center' },
   right:  { textAlign: 'right' },
@@ -212,14 +213,14 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
           <table style={{ ...S.tbl, marginBottom: 12 }}>
             <thead>
               <tr>
-                <th style={{ ...S.th, width: 25 }}>No</th>
-                <th style={S.th}>Program / Kegiatan / Sub Kegiatan</th>
-                <th style={S.th}>Kode Rekening</th>
-                <th style={{ ...S.th, width: 35 }}>Vol</th>
-                <th style={{ ...S.th, width: 35 }}>Sat</th>
-                <th style={{ ...S.th, width: 90 }}>Pagu Utama (Rp)</th>
-                <th style={{ ...S.th, width: 75 }}>BOP (Rp)</th>
-                <th style={{ ...S.th, width: 90 }}>Total (Rp)</th>
+                <th style={{ ...S.th, width: '4%' }}>No</th>
+                <th style={{ ...S.th, width: '30%' }}>Program / Kegiatan / Sub Kegiatan</th>
+                <th style={{ ...S.th, width: '18%' }}>Kode Rekening</th>
+                <th style={{ ...S.th, width: '6%' }}>Vol</th>
+                <th style={{ ...S.th, width: '6%' }}>Sat</th>
+                <th style={{ ...S.th, width: '13%' }}>Pagu Utama (Rp)</th>
+                <th style={{ ...S.th, width: '11%' }}>BOP (Rp)</th>
+                <th style={{ ...S.th, width: '12%' }}>Total (Rp)</th>
               </tr>
             </thead>
             <tbody>
@@ -494,13 +495,13 @@ export function RekapAisistensi({ rows = [], tahun, kabupaten = KOTA }) {
       <table style={S.tbl}>
         <thead>
           <tr>
-            <th style={{ ...S.th, width: 28 }}>No</th>
-            <th style={S.th}>Nomor BA</th>
-            <th style={S.th}>Tanggal</th>
-            <th style={S.th}>OPD / Perangkat Daerah</th>
-            <th style={S.th}>Program / Kegiatan</th>
-            <th style={{ ...S.th, width: 90 }}>Pagu Usulan (Rp)</th>
-            <th style={{ ...S.th, width: 80 }}>Kesimpulan</th>
+            <th style={{ ...S.th, width: '4%' }}>No</th>
+            <th style={{ ...S.th, width: '14%' }}>Nomor BA</th>
+            <th style={{ ...S.th, width: '9%' }}>Tanggal</th>
+            <th style={{ ...S.th, width: '17%' }}>OPD / Perangkat Daerah</th>
+            <th style={{ ...S.th, width: '32%' }}>Program / Kegiatan</th>
+            <th style={{ ...S.th, width: '13%' }}>Pagu Usulan (Rp)</th>
+            <th style={{ ...S.th, width: '11%' }}>Kesimpulan</th>
           </tr>
         </thead>
         <tbody>
@@ -560,17 +561,17 @@ export function RekapRekonsiliasi({ rows = [], tahun, triwulan, kabupaten = KOTA
       <table style={S.tbl}>
         <thead>
           <tr>
-            <th style={{ ...S.th, width: 28 }}>No</th>
-            <th style={S.th}>Nomor BA</th>
-            <th style={S.th}>Tanggal</th>
-            <th style={S.th}>OPD</th>
-            <th style={S.th}>Program</th>
-            <th style={{ ...S.th, width: 28 }}>Tw</th>
-            <th style={{ ...S.th, width: 85 }}>Pagu (Rp)</th>
-            <th style={{ ...S.th, width: 85 }}>Real. Keu (Rp)</th>
-            <th style={{ ...S.th, width: 48 }}>% Keu</th>
-            <th style={{ ...S.th, width: 48 }}>Fisik</th>
-            <th style={{ ...S.th, width: 70 }}>Kesimpulan</th>
+            <th style={{ ...S.th, width: '3%' }}>No</th>
+            <th style={{ ...S.th, width: '13%' }}>Nomor BA</th>
+            <th style={{ ...S.th, width: '8%' }}>Tanggal</th>
+            <th style={{ ...S.th, width: '14%' }}>OPD</th>
+            <th style={{ ...S.th, width: '18%' }}>Program</th>
+            <th style={{ ...S.th, width: '4%' }}>Tw</th>
+            <th style={{ ...S.th, width: '10%' }}>Pagu (Rp)</th>
+            <th style={{ ...S.th, width: '10%' }}>Real. Keu (Rp)</th>
+            <th style={{ ...S.th, width: '6%' }}>% Keu</th>
+            <th style={{ ...S.th, width: '5%' }}>Fisik</th>
+            <th style={{ ...S.th, width: '9%' }}>Kesimpulan</th>
           </tr>
         </thead>
         <tbody>
@@ -897,10 +898,43 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
   )
 }
 
+// ── Tanda tangan fleksibel (Koordinator + Pejabat Penandatangan) ──
+// Dipakai oleh dokumen yang menyediakan modal "Download PDF" untuk mengisi
+// data penandatangan (lihat komponen ModalTtdPdf di halaman utama Laporan).
+function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
+  const t = ttd || {}
+  const tempat  = t.tempat  || kabupaten
+  const tanggal = t.tanggal ? fmtTgl(t.tanggal) : '__________ bulan __________ tahun __________'
+  return (
+    <div style={{ marginTop: 30, fontSize: 11 }}>
+      <div style={{ textAlign: 'right', marginBottom: 6 }}>
+        {tempat}, {tanggal}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
+        <div style={{ textAlign: 'center', width: '46%' }}>
+          <div>Koordinator DBH CHT</div>
+          {t.jabatanKoordinator && <div>{t.jabatanKoordinator}</div>}
+          <div>{kabupaten}</div>
+          <div style={{ marginTop: 55 }}>(__________________________)</div>
+          <div style={{ fontWeight: 'bold' }}>{t.namaKoordinator || ''}</div>
+          <div>NIP. {t.nipKoordinator || ''}</div>
+        </div>
+        <div style={{ textAlign: 'center', width: '46%' }}>
+          <div>{t.atasNama ? 'a.n. Koordinator DBH CHT' : '\u00A0'}</div>
+          <div>{t.jabatanPenandatangan || 'Pejabat yang Berwenang'}</div>
+          <div style={{ marginTop: 55 }}>(__________________________)</div>
+          <div style={{ fontWeight: 'bold' }}>{t.namaPejabat || ''}</div>
+          <div>NIP. {t.nipPejabat || ''}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════
 //  LAPORAN REALISASI
 // ══════════════════════════════════════════════════════════════
-export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
+export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA, ttd = null }) {
   const koorRows   = rows.filter(r => r.is_koordinasi)
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
@@ -1040,6 +1074,7 @@ export function CetakRealisasi({ rows = [], tahun, label, kabupaten = KOTA }) {
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan. Sisa Anggaran = (Pagu Utama + BOP) − (Realisasi Pagu Utama + Realisasi BOP).
       </div>
+      <TandaTanganFleksibel ttd={ttd} kabupaten={kabupaten} />
     </div>
   )
 }
@@ -1227,6 +1262,23 @@ export default function Laporan() {
   const [paguMurniInfo, setPaguMurniInfo] = useState(null)
   const [paguPerubahanInfo, setPaguPerubahanInfo] = useState(null)
   const [orientasi, setOrientasi] = useState('portrait')
+
+  // ── Modal "Download PDF Laporan Realisasi" — data penandatangan ──
+  const TTD_EMPTY = {
+    namaKoordinator: '', nipKoordinator: '', jabatanKoordinator: '',
+    tempat: KOTA, tanggal: '',
+    jabatanPenandatangan: '', namaPejabat: '', nipPejabat: '', atasNama: false,
+  }
+  const [showTtdModal, setShowTtdModal] = useState(false)
+  const [ttdForm, setTtdForm] = useState(TTD_EMPTY)
+  const [ttd, setTtd] = useState(null)
+
+  function openTtdModal() { setTtdForm(f => ({ ...TTD_EMPTY, ...f })); setShowTtdModal(true) }
+  function generatePdf() {
+    setTtd(ttdForm)
+    setShowTtdModal(false)
+    setTimeout(doCetak, 100) // beri waktu render ulang blok tanda tangan sebelum print
+  }
 
   useEffect(() => { if (profile) loadAll() }, [tahun, jenis, profile])
 
@@ -1476,12 +1528,13 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan</button>
+            <button className="btn btn-outline" onClick={openTtdModal}>📥 Download PDF</button>
             <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
             <CetakRealisasi rows={mergeRealisasi(realTw, rkpMap)} tahun={tahun}
               label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
-              kabupaten={KOTA} />
+              kabupaten={KOTA} ttd={ttd} />
           </div>
         </>
       )}
@@ -1491,11 +1544,12 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester I</button>
+            <button className="btn btn-outline" onClick={openTtdModal}>📥 Download PDF</button>
             <OrientToggle value={orientasi} onChange={setOrientasi} />
             <span className="chip">Triwulan I + II</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
-            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} />
+            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} ttd={ttd} />
           </div>
         </>
       )}
@@ -1505,13 +1559,83 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak Laporan Semester II</button>
+            <button className="btn btn-outline" onClick={openTtdModal}>📥 Download PDF</button>
             <OrientToggle value={orientasi} onChange={setOrientasi} />
             <span className="chip">Triwulan I + II + III + IV</span>
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
-            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} />
+            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} ttd={ttd} />
           </div>
         </>
+      )}
+
+      {/* ── Modal Download PDF Laporan Realisasi ── */}
+      {showTtdModal && (
+        <Modal title="Download PDF Laporan Realisasi" onClose={() => setShowTtdModal(false)} wide>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Nama Koordinator</label>
+              <input className="form-control" value={ttdForm.namaKoordinator}
+                onChange={e => setTtdForm({ ...ttdForm, namaKoordinator: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Jabatan Penandatangan</label>
+              <input className="form-control" value={ttdForm.jabatanPenandatangan}
+                onChange={e => setTtdForm({ ...ttdForm, jabatanPenandatangan: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">NIP Koordinator</label>
+              <input className="form-control" value={ttdForm.nipKoordinator}
+                onChange={e => setTtdForm({ ...ttdForm, nipKoordinator: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Nama Pejabat Penandatangan</label>
+              <input className="form-control" value={ttdForm.namaPejabat}
+                onChange={e => setTtdForm({ ...ttdForm, namaPejabat: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Jabatan Koordinator</label>
+              <input className="form-control" placeholder="Opsional" value={ttdForm.jabatanKoordinator}
+                onChange={e => setTtdForm({ ...ttdForm, jabatanKoordinator: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">NIP Pejabat Penandatangan</label>
+              <input className="form-control" value={ttdForm.nipPejabat}
+                onChange={e => setTtdForm({ ...ttdForm, nipPejabat: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Tempat Penandatanganan</label>
+              <input className="form-control" placeholder="Contoh: Jakarta" value={ttdForm.tempat}
+                onChange={e => setTtdForm({ ...ttdForm, tempat: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={ttdForm.atasNama}
+                  onChange={e => setTtdForm({ ...ttdForm, atasNama: e.target.checked })} />
+                Atas nama (a.n.)?
+              </label>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">Tanggal Penandatanganan</label>
+              <input className="form-control" type="date" value={ttdForm.tanggal}
+                onChange={e => setTtdForm({ ...ttdForm, tanggal: e.target.value })} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }} />
+          </div>
+
+          <div className="modal-footer">
+            <button className="btn btn-outline" onClick={() => setShowTtdModal(false)}>Batal</button>
+            <button className="btn btn-primary" onClick={generatePdf}>📄 Generate PDF</button>
+          </div>
+        </Modal>
       )}
     </div>
   )
