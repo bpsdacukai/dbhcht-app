@@ -766,7 +766,7 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
         <td style={{ ...S.td, ...S.center }}>{ri + 1}</td>
         <td style={S.td}><div style={S.bold}>{r.program}</div>{r.kegiatan && <div>{r.kegiatan}{r.isBaru && <span style={{ fontStyle: 'italic' }}> (Kegiatan Baru)</span>}</div>}</td>
         <td style={S.td}>{r.sub_kegiatan || ''}</td>
-        <td style={S.td}><div>{r.kode_rekening || ''}</div>{r.nama_rekening && <div style={{ fontSize: 8 }}>{r.nama_rekening}</div>}</td>
+        <td style={{ ...S.td, whiteSpace: 'normal', wordBreak: 'break-word' }}><div>{r.kode_rekening || ''}</div>{r.nama_rekening && <div style={{ fontSize: 8 }}>{r.nama_rekening}</div>}</td>
         {/* Semula */}
         <td style={{ ...S.td, ...S.center }}>{r.isBaru ? '—' : (r.volumeSemula || '')}</td>
         <td style={{ ...S.td, ...S.center }}>{r.isBaru ? '—' : (r.satuanSemula || '')}</td>
@@ -775,7 +775,7 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
         <td style={{ ...S.td, ...S.center }}>{r.volumeMenjadi || ''}</td>
         <td style={{ ...S.td, ...S.center }}>{r.satuanMenjadi || ''}</td>
         <td style={{ ...S.td, ...S.right, ...S.bold }}>{fmt(menjadiTotal)}</td>
-        <td style={S.td}>{r.keterangan || ''}</td>
+        <td style={{ ...S.td, whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.keterangan || ''}</td>
       </tr>
     )
   }
@@ -800,21 +800,34 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
       <table style={{ ...S.tbl, fontSize: 8.5 }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ ...S.th, width: 24 }}>(1)<br />No.</th>
-            <th rowSpan={2} style={S.th}>(2)<br />Bidang, Program, dan Kegiatan</th>
-            <th rowSpan={2} style={S.th}>(3)<br />Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th rowSpan={2} style={S.th}>(4)<br />Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
+            <th rowSpan={2} style={{ ...S.th, width: 24 }}>No.</th>
+            <th rowSpan={2} style={S.th}>Bidang, Program, dan Kegiatan</th>
+            <th rowSpan={2} style={S.th}>Rincian Kegiatan dalam Ketentuan Teknis</th>
+            <th rowSpan={2} style={{ ...S.th, width: 130, whiteSpace: 'normal', wordBreak: 'break-word' }}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
             <th colSpan={3} style={S.th}>Semula</th>
             <th colSpan={3} style={S.th}>Menjadi</th>
-            <th rowSpan={2} style={S.th}>Keterangan</th>
+            <th rowSpan={2} style={{ ...S.th, width: 95, whiteSpace: 'normal', wordBreak: 'break-word' }}>Keterangan</th>
           </tr>
           <tr>
-            <th style={{ ...S.th, width: 34 }}>(5) Vol</th>
-            <th style={{ ...S.th, width: 34 }}>(6) Sat</th>
+            <th style={{ ...S.th, width: 34 }}>Vol</th>
+            <th style={{ ...S.th, width: 34 }}>Sat</th>
             <th style={{ ...S.th, width: 72 }}>Pagu Kegiatan (Rp)</th>
-            <th style={{ ...S.th, width: 34 }}>(9) Vol</th>
-            <th style={{ ...S.th, width: 34 }}>(10) Sat</th>
+            <th style={{ ...S.th, width: 34 }}>Vol</th>
+            <th style={{ ...S.th, width: 34 }}>Sat</th>
             <th style={{ ...S.th, width: 72 }}>Pagu Kegiatan (Rp)</th>
+          </tr>
+          <tr>
+            <th style={S.th}>(1)</th>
+            <th style={S.th}>(2)</th>
+            <th style={S.th}>(3)</th>
+            <th style={{ ...S.th, width: 130 }}>(4)</th>
+            <th style={{ ...S.th, width: 34 }}>(5)</th>
+            <th style={{ ...S.th, width: 34 }}>(6)</th>
+            <th style={{ ...S.th, width: 72 }}>(7)</th>
+            <th style={{ ...S.th, width: 34 }}>(8)</th>
+            <th style={{ ...S.th, width: 34 }}>(9)</th>
+            <th style={{ ...S.th, width: 72 }}>(10)</th>
+            <th style={{ ...S.th, width: 95 }}>(11)</th>
           </tr>
         </thead>
         <tbody>
