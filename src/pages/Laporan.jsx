@@ -797,37 +797,37 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
         </tbody>
       </table>
 
-      <table style={{ ...S.tbl, fontSize: 8.5 }}>
+      <table style={{ ...S.tbl, fontSize: 8.5, tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ ...S.th, width: 24 }}>No.</th>
-            <th rowSpan={2} style={S.th}>Bidang, Program, dan Kegiatan</th>
-            <th rowSpan={2} style={S.th}>Rincian Kegiatan dalam Ketentuan Teknis</th>
-            <th rowSpan={2} style={{ ...S.th, width: 130, whiteSpace: 'normal', wordBreak: 'break-word' }}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
+            <th rowSpan={2} style={{ ...S.th, width: '3%' }}>No.</th>
+            <th rowSpan={2} style={{ ...S.th, width: '19%' }}>Bidang, Program, dan Kegiatan</th>
+            <th rowSpan={2} style={{ ...S.th, width: '16%' }}>Rincian Kegiatan dalam Ketentuan Teknis</th>
+            <th rowSpan={2} style={{ ...S.th, width: '17%', whiteSpace: 'normal' }}>Kode/Klasifikasi Nomenklatur dalam Penganggaran APBD</th>
             <th colSpan={3} style={S.th}>Semula</th>
             <th colSpan={3} style={S.th}>Menjadi</th>
-            <th rowSpan={2} style={{ ...S.th, width: 95, whiteSpace: 'normal', wordBreak: 'break-word' }}>Keterangan</th>
+            <th rowSpan={2} style={{ ...S.th, width: '11%', whiteSpace: 'normal' }}>Keterangan</th>
           </tr>
           <tr>
-            <th style={{ ...S.th, width: 34 }}>Vol</th>
-            <th style={{ ...S.th, width: 34 }}>Sat</th>
-            <th style={{ ...S.th, width: 72 }}>Pagu Kegiatan (Rp)</th>
-            <th style={{ ...S.th, width: 34 }}>Vol</th>
-            <th style={{ ...S.th, width: 34 }}>Sat</th>
-            <th style={{ ...S.th, width: 72 }}>Pagu Kegiatan (Rp)</th>
+            <th style={{ ...S.th, width: '4%' }}>Vol</th>
+            <th style={{ ...S.th, width: '4%' }}>Sat</th>
+            <th style={{ ...S.th, width: '9%' }}>Pagu Kegiatan (Rp)</th>
+            <th style={{ ...S.th, width: '4%' }}>Vol</th>
+            <th style={{ ...S.th, width: '4%' }}>Sat</th>
+            <th style={{ ...S.th, width: '9%' }}>Pagu Kegiatan (Rp)</th>
           </tr>
           <tr>
             <th style={S.th}>(1)</th>
             <th style={S.th}>(2)</th>
             <th style={S.th}>(3)</th>
-            <th style={{ ...S.th, width: 130 }}>(4)</th>
-            <th style={{ ...S.th, width: 34 }}>(5)</th>
-            <th style={{ ...S.th, width: 34 }}>(6)</th>
-            <th style={{ ...S.th, width: 72 }}>(7)</th>
-            <th style={{ ...S.th, width: 34 }}>(8)</th>
-            <th style={{ ...S.th, width: 34 }}>(9)</th>
-            <th style={{ ...S.th, width: 72 }}>(10)</th>
-            <th style={{ ...S.th, width: 95 }}>(11)</th>
+            <th style={S.th}>(4)</th>
+            <th style={S.th}>(5)</th>
+            <th style={S.th}>(6)</th>
+            <th style={S.th}>(7)</th>
+            <th style={S.th}>(8)</th>
+            <th style={S.th}>(9)</th>
+            <th style={S.th}>(10)</th>
+            <th style={S.th}>(11)</th>
           </tr>
         </thead>
         <tbody>
