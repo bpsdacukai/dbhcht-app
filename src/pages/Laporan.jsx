@@ -11,6 +11,13 @@ import { analysisDashboard } from '../lib/ai.js'
 const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
 const KOTA = 'Kota Batu'
 const KODE_WILAYAH = '35.79.121'
+// Opsi "Jabatan yang Diwakili" saat tanda tangan a.n. (atas nama) dicentang.
+// Contoh tampilan: "a.n. WALI KOTA BATU" lalu di bawahnya jabatan penandatangan (mis. "Sekretaris Daerah").
+const NAMA_SINGKAT = KOTA.replace(/^Kota\s+/i, '').toUpperCase() // "BATU"
+const JABATAN_DIWAKILI_OPTIONS = [
+  `WALI KOTA ${NAMA_SINGKAT}`,
+  `SEKRETARIS DAERAH ${KOTA.toUpperCase()}`,
+]
 
 // Format nomor BA asistensi: 027/001/HA-RKP/35.79.121/2026
 function fmtNomorAsist(noBA, tanggal) {
@@ -616,7 +623,7 @@ export function RekapRekonsiliasi({ rows = [], tahun, triwulan, kabupaten = KOTA
 // ══════════════════════════════════════════════════════════════
 //  CETAK RKP
 // ══════════════════════════════════════════════════════════════
-export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
+export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA, ttd = null }) {
   const koorRows   = rows.filter(r => r.is_koordinasi)
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
@@ -713,6 +720,7 @@ export function CetakRKP({ rows = [], tahun, jenis, kabupaten = KOTA }) {
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan
       </div>
+      <TandaTanganFleksibel ttd={ttd} kabupaten={kabupaten} />
     </div>
   )
 }
@@ -752,7 +760,7 @@ export function buildBarisRkpPerubahan(murniRows = [], perubahanRows = []) {
   return [...dariMurni, ...baruTanpaMurni]
 }
 
-export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlokasi = 0, sisaSilpa = 0 }) {
+export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlokasi = 0, sisaSilpa = 0, ttd = null }) {
   const koorRows   = rows.filter(r => r.is_koordinasi)
   const normalRows = rows.filter(r => !r.is_koordinasi)
   const byBidang   = {}
@@ -881,20 +889,7 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
       <div style={{ marginTop: 6, fontSize: 9, fontStyle: 'italic' }}>
         *Biaya operasional pendukung (BOP) maksimal sebesar 10% dari masing-masing kegiatan. Kolom Semula bersumber dari RKP Murni TA {tahun}.
       </div>
-
-      <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-        <div style={{ textAlign: 'center', width: 220 }}>
-          <div>Koordinator DBH CHT</div>
-          <div>{kabupaten}</div>
-          <div style={{ marginTop: 55 }}>(__________________________)</div>
-          <div>NIP.</div>
-        </div>
-        <div style={{ textAlign: 'center', width: 220 }}>
-          <div>Disetujui Oleh</div>
-          <div>Gubernur/Bupati/Walikota …..</div>
-          <div style={{ marginTop: 55 }}>(__________________________)</div>
-        </div>
-      </div>
+      <TandaTanganFleksibel ttd={ttd} kabupaten={kabupaten} />
     </div>
   )
 }
@@ -921,7 +916,7 @@ function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
           <div>NIP. {t.nipKoordinator || ''}</div>
         </div>
         <div style={{ textAlign: 'center', width: '46%' }}>
-          <div>{t.atasNama ? 'a.n. Koordinator DBH CHT' : '\u00A0'}</div>
+          <div>{t.atasNama ? `a.n. ${t.jabatanDiwakili || JABATAN_DIWAKILI_OPTIONS[0]}` : '\u00A0'}</div>
           <div>{t.jabatanPenandatangan || 'Pejabat yang Berwenang'}</div>
           <div style={{ marginTop: 55 }}>(__________________________)</div>
           <div style={{ fontWeight: 'bold' }}>{t.namaPejabat || ''}</div>
@@ -1547,6 +1542,7 @@ export default function Laporan() {
     namaKoordinator: '', nipKoordinator: '', jabatanKoordinator: '',
     tempat: KOTA, tanggal: '',
     jabatanPenandatangan: '', namaPejabat: '', nipPejabat: '', atasNama: false,
+    jabatanDiwakili: JABATAN_DIWAKILI_OPTIONS[0],
   }
   const [showTtdModal, setShowTtdModal] = useState(false)
   const [ttdForm, setTtdForm] = useState(TTD_EMPTY)
@@ -1789,10 +1785,11 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP</button>
+            <button className="btn btn-outline" onClick={openTtdModal}>📥 Download PDF</button>
             <OrientToggle value={orientasi} onChange={setOrientasi} />
           </div>
           <div className="doc-printable" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 8 }}>
-            <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} />
+            <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} ttd={ttd} />
           </div>
         </>
       )}
@@ -1802,6 +1799,7 @@ export default function Laporan() {
         <>
           <div className="no-print" style={{ marginBottom: '.75rem', display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={doCetak}>🖨️ Cetak RKP Perubahan</button>
+            <button className="btn btn-outline" onClick={openTtdModal}>📥 Download PDF</button>
             <OrientToggle value={orientasi} onChange={setOrientasi} />
             {orientasi !== 'landscape' && <span className="chip" style={{ fontSize: '.72rem' }}>💡 Disarankan orientasi Landscape agar kolom tidak terpotong</span>}
           </div>
@@ -1810,6 +1808,7 @@ export default function Laporan() {
               rows={rkpPerubahanRows} tahun={tahun} kabupaten={KOTA}
               paguAlokasi={paguMurniInfo?.total_pagu || 0}
               sisaSilpa={(paguPerubahanInfo?.total_pagu || 0) - (paguMurniInfo?.total_pagu || 0)}
+              ttd={ttd}
             />
           </div>
         </>
@@ -1957,6 +1956,22 @@ export default function Laporan() {
               </label>
             </div>
           </div>
+          {ttdForm.atasNama && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">Jabatan yang Diwakili</label>
+                <select className="form-control" value={ttdForm.jabatanDiwakili}
+                  onChange={e => setTtdForm({ ...ttdForm, jabatanDiwakili: e.target.value })}>
+                  {JABATAN_DIWAKILI_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
+                  Akan tampil sebagai "a.n. {ttdForm.jabatanDiwakili}", dengan jabatan penandatangan
+                  (di atas) sebagai pihak yang mewakili.
+                </div>
+              </div>
+              <div className="form-group" style={{ flex: 1 }} />
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">Tanggal Penandatanganan</label>
