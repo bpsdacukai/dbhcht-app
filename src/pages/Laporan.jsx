@@ -903,11 +903,8 @@ function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
   const tanggal = t.tanggal ? fmtTgl(t.tanggal) : '__________ bulan __________ tahun __________'
   return (
     <div style={{ marginTop: 30, fontSize: 11 }}>
-      <div style={{ textAlign: 'right', marginBottom: 6 }}>
-        {tempat}, {tanggal}
-      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
-        <div style={{ textAlign: 'center', width: '46%' }}>
+        <div style={{ textAlign: 'left', width: '46%' }}>
           <div>Koordinator DBH CHT</div>
           {t.jabatanKoordinator && <div>{t.jabatanKoordinator}</div>}
           <div>{kabupaten}</div>
@@ -915,7 +912,8 @@ function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
           <div style={{ fontWeight: 'bold' }}>{t.namaKoordinator || ''}</div>
           <div>NIP. {t.nipKoordinator || ''}</div>
         </div>
-        <div style={{ textAlign: 'center', width: '46%' }}>
+        <div style={{ textAlign: 'left', width: '46%' }}>
+          <div>{tempat}, {tanggal}</div>
           <div>{t.atasNama ? `a.n. ${t.jabatanDiwakili || JABATAN_DIWAKILI_OPTIONS[0]}` : '\u00A0'}</div>
           <div>{t.jabatanPenandatangan || 'Pejabat yang Berwenang'}</div>
           <div style={{ marginTop: 55 }}>(__________________________)</div>
