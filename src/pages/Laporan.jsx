@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { useApp } from '../hooks/useApp.jsx'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { BIDANG, KOORDINASI, fmtRp } from '../lib/constants.js'
-import { Modal } from '../components/UI.jsx'
+import { BIDANG, KOORDINASI, fmtRp, fmtPct, today } from '../lib/constants.js'
+import { Modal, ProgressBar, StatBox } from '../components/UI.jsx'
+import { analysisDashboard } from '../lib/ai.js'
 
 // ── helpers ────────────────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
@@ -1236,6 +1237,284 @@ function mergeRealisasi(rows, rkpMap = {}) {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  SLIDE PRESENTASI — Laporan Pelaksanaan Penggunaan DBH CHT
+// ══════════════════════════════════════════════════════════════
+// Menghitung ulang agregat pagu/realisasi dengan pola YANG SAMA seperti
+// Dashboard.jsx (realKeu, realPagu via join rkp_id) supaya angka di slide
+// selalu konsisten dengan Dashboard & tabel Cetak lainnya — satu sumber
+// kebenaran, tidak ada rumus baru yang berisiko beda hasil.
+function SlidePresentasi({
+  tahun, jenis, kabupaten = KOTA,
+  rkpRows = [], realRows = [], rkpMap = {},
+  asisRows = [], rekonRows = [], nOpd = 0,
+  pagu, ttd, onClose,
+}) {
+  const [idx, setIdx] = useState(0)
+  const [aiText, setAiText] = useState('')
+  const [aiLoad, setAiLoad] = useState(false)
+  const [aiDone, setAiDone] = useState(false)
+
+  const tp = pagu?.total_pagu || 0
+
+  const sumRkpPagu = (bid, isK) =>
+    rkpRows.filter(r => isK ? r.is_koordinasi : r.bidang_id === bid && !r.is_koordinasi)
+           .reduce((s, r) => s + (r.pagu || 0) + (r.pagu_bop || 0), 0)
+  const totalRkpAll = rkpRows.reduce((s, r) => s + (r.pagu || 0) + (r.pagu_bop || 0), 0)
+
+  const realKeu = (r) => (r.realisasi_pagu_utama || 0) + (r.realisasi_bop || 0)
+  const realPagu = (r) => {
+    const rkp = rkpMap[r.rkp_id]
+    return rkp ? (rkp.pagu || 0) + (rkp.pagu_bop || 0) : 0
+  }
+  const byBidang = (bid, isK) =>
+    realRows.filter(r => isK ? r.is_koordinasi : r.bidang_id === bid && !r.is_koordinasi)
+  const sumReal = (bid, isK) => byBidang(bid, isK).reduce((s, r) => s + realKeu(r), 0)
+
+  const totalReal = realRows.reduce((s, r) => s + realKeu(r), 0)
+  const pctReal = tp > 0 ? (totalReal / tp * 100) : 0
+
+  const realByTw = (tw) => realRows.filter(r => r.triwulan === tw).reduce((s, r) => s + realKeu(r), 0)
+  const paguByTw = (tw) => realRows.filter(r => r.triwulan === tw).reduce((s, r) => s + realPagu(r), 0)
+  const sem1 = realByTw('I') + realByTw('II')
+  const sem2 = realByTw('III') + realByTw('IV')
+  const pctSem1 = tp > 0 ? (sem1 / tp * 100) : 0
+  const pctSem2 = tp > 0 ? (sem2 / tp * 100) : 0
+  const triwulans = ['I', 'II', 'III', 'IV']
+
+  async function doAI() {
+    setAiLoad(true)
+    const t = await analysisDashboard({ tahun, totalPagu: tp, totalReal, pctReal, nOpd })
+    setAiText(t); setAiLoad(false); setAiDone(true)
+  }
+
+  const slides = [
+    // 0 — Cover
+    () => (
+      <div style={St.center}>
+        <div style={{ fontSize: 13, letterSpacing: 2, color: 'var(--text2)', marginBottom: 18 }}>PEMERINTAH KOTA BATU</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>DOKUMEN LAPORAN PELAKSANAAN PENGGUNAAN</div>
+        <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.3, marginBottom: 6 }}>DANA BAGI HASIL CUKAI HASIL TEMBAKAU</div>
+        <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 24 }}>(DBH CHT) {kabupaten.toUpperCase()}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', border: '2px solid var(--gold)', borderRadius: 8, padding: '6px 24px', display: 'inline-block' }}>
+          TAHUN ANGGARAN {tahun} — {jenis}
+        </div>
+        <div style={{ marginTop: 40, fontSize: 12, color: 'var(--text2)' }}>Disusun oleh Bagian Perekonomian dan SDA · {today()}</div>
+      </div>
+    ),
+    // 1 — Dasar Hukum & Pendahuluan
+    () => (
+      <div>
+        <SlideTitle icon="📖" text="Dasar Hukum & Pendahuluan" />
+        <ul style={St.list}>
+          <li>Peraturan Menteri Keuangan tentang Pengelolaan Dana Bagi Hasil Cukai Hasil Tembakau (PMK DBH CHT) tahun berjalan.</li>
+          <li>Peraturan Kepala Daerah tentang Petunjuk Teknis Penggunaan DBH CHT {kabupaten}.</li>
+          <li>Dokumen Rencana Kerja dan Penganggaran (RKP) DBH CHT Tahun Anggaran {tahun} — jenis {jenis}.</li>
+        </ul>
+        <div style={St.note}>
+          Laporan ini disusun untuk menyajikan gambaran menyeluruh atas perencanaan, alokasi, dan
+          realisasi penggunaan DBH CHT {kabupaten} Tahun Anggaran {tahun} kepada pimpinan, sebagai bentuk
+          pertanggungjawaban dan transparansi pengelolaan anggaran.
+        </div>
+      </div>
+    ),
+    // 2 — Gambaran Umum Alokasi
+    () => (
+      <div>
+        <SlideTitle icon="📊" text="Gambaran Umum Alokasi Anggaran" />
+        <div style={{ display: 'flex', gap: 14, marginBottom: 18 }}>
+          <StatBox label="Total Pagu DBH CHT" value={fmtRp(tp)} sub={`TA ${tahun} · ${jenis}`} />
+          <StatBox label="Total Anggaran RKP" value={fmtRp(totalRkpAll)} sub="sudah terinput" color="var(--gold)" />
+        </div>
+        {BIDANG.map(b => {
+          const alok = tp * (pagu?.[`pct_${b.id}`] || b.pct) / 100
+          const rkpVal = sumRkpPagu(b.id, false)
+          const pct = alok > 0 ? (rkpVal / alok * 100) : 0
+          return (
+            <div key={b.id} style={{ marginBottom: 14 }}>
+              <div style={St.rowBetween}>
+                <span style={{ fontWeight: 600 }}>{b.icon} {b.label}</span>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>{pagu?.[`pct_${b.id}`] || b.pct}% · {fmtRp(alok)}</span>
+              </div>
+              <ProgressBar value={pct} color={b.color} height={10} />
+            </div>
+          )
+        })}
+      </div>
+    ),
+    // 3 — Realisasi Keuangan per Bidang
+    () => (
+      <div>
+        <SlideTitle icon="💰" text="Realisasi Keuangan per Bidang" />
+        <div style={{ display: 'flex', gap: 14, marginBottom: 18 }}>
+          <StatBox label="Total Realisasi" value={fmtRp(totalReal)} sub={`${fmtPct(pctReal)} dari Pagu`} color="var(--info)" />
+          <StatBox label="Capaian Realisasi" value={fmtPct(pctReal)}
+            color={pctReal >= 80 ? 'var(--accent)' : pctReal >= 50 ? 'var(--gold)' : 'var(--danger)'} />
+        </div>
+        {[...BIDANG, KOORDINASI].map(b => {
+          const isK = !!b.isKoordinasi
+          const alok = isK ? sumRkpPagu(null, true) : tp * (pagu?.[`pct_${b.id}`] || b.pct) / 100
+          const real = sumReal(isK ? null : b.id, isK)
+          const pct = alok > 0 ? (real / alok * 100) : 0
+          return (
+            <div key={b.id} style={{ marginBottom: 14 }}>
+              <div style={St.rowBetween}>
+                <span style={{ fontWeight: 600 }}>{b.icon} {b.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: b.color }}>{fmtRp(real)} ({fmtPct(pct)})</span>
+              </div>
+              <ProgressBar value={pct} color={b.color} height={10} />
+            </div>
+          )
+        })}
+      </div>
+    ),
+    // 4 — Realisasi per Triwulan
+    () => (
+      <div>
+        <SlideTitle icon="📅" text="Realisasi per Triwulan" />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, height: 140, padding: '0 10px', marginBottom: 20 }}>
+          {triwulans.map(tw => {
+            const real = realByTw(tw)
+            const maxReal = Math.max(...triwulans.map(t => realByTw(t)), 1)
+            const h = real > 0 ? Math.max((real / maxReal * 110), 6) : 0
+            const isSem1 = tw === 'I' || tw === 'II'
+            return (
+              <div key={tw} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 700 }}>{fmtPct(tp > 0 ? real / tp * 100 : 0)}</div>
+                <div style={{ width: '100%', height: h, background: isSem1 ? 'var(--info)' : 'var(--accent2)', borderRadius: '4px 4px 0 0' }} />
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Tw {tw}</div>
+                <div style={{ fontSize: 11, color: 'var(--text2)' }}>{fmtRp(real)}</div>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 20, justifyContent: 'center', fontSize: 13 }}>
+          <span>🟦 Semester I: <strong style={{ color: 'var(--info)' }}>{fmtRp(sem1)} ({fmtPct(pctSem1)})</strong></span>
+          <span>🟩 Semester II: <strong style={{ color: 'var(--accent2)' }}>{fmtRp(sem2)} ({fmtPct(pctSem2)})</strong></span>
+        </div>
+      </div>
+    ),
+    // 5 — Ringkasan Koordinasi & Asistensi
+    () => (
+      <div>
+        <SlideTitle icon="🤝" text="Ringkasan Asistensi & Rekonsiliasi" />
+        <div style={{ display: 'flex', gap: 14 }}>
+          <StatBox label="Berita Acara Asistensi" value={asisRows.length} sub="dokumen" />
+          <StatBox label="Berita Acara Rekonsiliasi" value={rekonRows.length} sub="dokumen" />
+          <StatBox label="OPD Pengguna Aktif" value={nOpd} sub="OPD terdaftar" />
+        </div>
+        <div style={St.note}>
+          Proses asistensi dan rekonsiliasi dilaksanakan secara berkala bersama OPD pengampu
+          kegiatan untuk memastikan kesesuaian perencanaan dan realisasi penggunaan DBH CHT.
+        </div>
+      </div>
+    ),
+    // 6 — Catatan & Rekomendasi (AI)
+    () => (
+      <div>
+        <SlideTitle icon="🤖" text="Catatan & Rekomendasi" />
+        {!aiDone && !aiLoad && (
+          <button className="btn btn-ai" onClick={doAI} style={{ padding: '10px 20px' }}>
+            ✨ Generate Analisa Otomatis
+          </button>
+        )}
+        {aiLoad && <div className="text-muted">⏳ AI sedang menganalisis data realisasi...</div>}
+        {aiDone && <div className="ai-box" style={{ fontSize: 14, lineHeight: 1.7 }}>{aiText}</div>}
+        {aiDone && (
+          <button className="btn btn-ghost btn-sm mt-1" onClick={() => { setAiDone(false); setAiText('') }}>
+            🔄 Ulangi Analisa
+          </button>
+        )}
+        <div style={{ ...St.note, marginTop: 16 }}>
+          Catatan: hasil analisa otomatis bersifat draf awal — mohon direview sebelum disampaikan
+          secara resmi kepada pimpinan.
+        </div>
+      </div>
+    ),
+    // 7 — Penutup & Tanda Tangan
+    () => (
+      <div>
+        <SlideTitle icon="✅" text="Penutup" />
+        <div style={St.note}>
+          Demikian laporan pelaksanaan penggunaan Dana Bagi Hasil Cukai Hasil Tembakau (DBH CHT)
+          {' '}{kabupaten} Tahun Anggaran {tahun} ini disusun sebagai bahan pertanggungjawaban dan
+          pengambilan keputusan lebih lanjut.
+        </div>
+        <TandaTanganFleksibel ttd={ttd} kabupaten={kabupaten} />
+      </div>
+    ),
+  ]
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'ArrowRight' || e.key === ' ') setIdx(i => Math.min(i + 1, slides.length - 1))
+      if (e.key === 'ArrowLeft') setIdx(i => Math.max(i - 1, 0))
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [slides.length, onClose])
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.()
+    else document.exitFullscreen?.()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#10201a', zIndex: 700, display: 'flex', flexDirection: 'column' }} className="no-print">
+      {/* Toolbar */}
+      <div style={{ background: '#1a3a1c', color: '#fff', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+        <span style={{ fontWeight: 700 }}>🎬 Slide Presentasi — Laporan DBH CHT {tahun}</span>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 13, color: '#cde8cd' }}>{idx + 1} / {slides.length}</span>
+        <button onClick={toggleFullscreen} style={St.btnGhost}>⛶ Fullscreen</button>
+        <button onClick={onClose} style={St.btnClose}>✕ Tutup</button>
+      </div>
+
+      {/* Slide area */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflow: 'auto' }}>
+        <div style={{
+          background: 'var(--bg2)', color: 'var(--text)', width: '100%', maxWidth: 980, minHeight: 540,
+          borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,.4)', padding: '42px 56px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+        }}>
+          {slides[idx]()}
+        </div>
+      </div>
+
+      {/* Navigasi bawah */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '12px 0', flexShrink: 0 }}>
+        <button onClick={() => setIdx(i => Math.max(i - 1, 0))} disabled={idx === 0} style={St.navBtn}>◀ Sebelumnya</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {slides.map((_, i) => (
+            <span key={i} onClick={() => setIdx(i)}
+              style={{ width: 8, height: 8, borderRadius: '50%', cursor: 'pointer', background: i === idx ? '#52b788' : '#3a5a3c' }} />
+          ))}
+        </div>
+        <button onClick={() => setIdx(i => Math.min(i + 1, slides.length - 1))} disabled={idx === slides.length - 1} style={St.navBtn}>Berikutnya ▶</button>
+      </div>
+    </div>
+  )
+}
+
+function SlideTitle({ icon, text }) {
+  return (
+    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span>{icon}</span><span>{text}</span>
+    </div>
+  )
+}
+
+const St = {
+  center: { textAlign: 'center' },
+  rowBetween: { display: 'flex', justifyContent: 'space-between', marginBottom: 5 },
+  list: { fontSize: 14, lineHeight: 2, paddingLeft: 20 },
+  note: { fontSize: 14, lineHeight: 1.8, color: 'var(--text2)', marginTop: 14 },
+  navBtn: { padding: '8px 18px', borderRadius: 6, border: '1px solid #3a5a3c', background: 'transparent', color: '#e8f0e0', cursor: 'pointer', fontSize: 13 },
+  btnGhost: { padding: '6px 14px', borderRadius: 5, border: '1px solid #3a5a3c', background: 'transparent', color: '#cde8cd', cursor: 'pointer', fontSize: 12.5 },
+  btnClose: { padding: '6px 14px', borderRadius: 5, border: 'none', background: '#c0392b', color: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 700 },
+}
+
+// ══════════════════════════════════════════════════════════════
 //  HALAMAN LAPORAN UTAMA
 // ══════════════════════════════════════════════════════════════
 export default function Laporan() {
@@ -1273,6 +1552,10 @@ export default function Laporan() {
   const [ttdForm, setTtdForm] = useState(TTD_EMPTY)
   const [ttd, setTtd] = useState(null)
 
+  // ── Slide Presentasi ──────────────────────────────────────────
+  const [showSlide, setShowSlide] = useState(false)
+  const [nOpd, setNOpd] = useState(0)
+
   function openTtdModal() { setTtdForm(f => ({ ...TTD_EMPTY, ...f })); setShowTtdModal(true) }
   function generatePdf() {
     setTtd(ttdForm)
@@ -1298,6 +1581,10 @@ export default function Laporan() {
     setAsis(a || []); setRekon(rk || []); setRkp(rv || []); setReal(rl || [])
     setMurniUntukPerubahan(mp || []); setPerubahanRows(pr || [])
     setPaguMurniInfo(pm); setPaguPerubahanInfo(pp)
+
+    // Hitung jumlah OPD aktif untuk slide presentasi (pola sama seperti Dashboard.jsx)
+    const { data: op } = await supabase.from('profiles').select('id').eq('role', 'opd').eq('aktif', true)
+    setNOpd((op || []).length)
   }
 
   const rkpPerubahanRows = buildBarisRkpPerubahan(murniUntukPerubahan, perubahanRows)
@@ -1321,7 +1608,10 @@ export default function Laporan() {
     { id: 'realisasi_tw', label: '📈 Real. Per Triwulan',   count: realRows.length },
     { id: 'realisasi_s1', label: '📊 Real. Semester I',     count: realSem1.length },
     { id: 'realisasi_s2', label: '📊 Real. Semester II',    count: realSem2.length },
+    { id: 'slide',        label: '🎬 Slide Presentasi' },
   ]
+
+  const paguAktif = jenis === 'Murni' ? paguMurniInfo : paguPerubahanInfo
 
   function openPreview(type, row) { setSelBA(row); setPrevType(type) }
   function closePreview()         { setSelBA(null); setPrevType(null) }
@@ -1365,7 +1655,9 @@ export default function Laporan() {
         {MENUS.map(m => (
           <div key={m.id} className={`tab ${menu === m.id ? 'active' : ''}`}
             onClick={() => { setMenu(m.id); setSelBA(null) }}>
-            {m.label} <span style={{ fontSize: '.7rem', color: 'var(--text2)', marginLeft: 3 }}>({m.count})</span>
+            {m.label}{m.count !== undefined && (
+              <span style={{ fontSize: '.7rem', color: 'var(--text2)', marginLeft: 3 }}>({m.count})</span>
+            )}
           </div>
         ))}
       </div>
@@ -1567,6 +1859,49 @@ export default function Laporan() {
             <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} ttd={ttd} />
           </div>
         </>
+      )}
+
+      {menu === 'slide' && (
+        <div className="no-print" style={{
+          background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10,
+          padding: '2rem', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>🎬</div>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+            Dokumen Laporan Pelaksanaan Penggunaan DBH CHT {KOTA} TA {tahun}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 18, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+            Ringkasan interaktif berupa slide — data pagu, realisasi, dan capaian diambil langsung
+            (real-time) dari data RKP &amp; Realisasi jenis <strong>{jenis}</strong> tahun berjalan.
+            Cocok ditampilkan langsung ke pimpinan dari layar atau proyektor.
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" style={{ padding: '10px 22px', fontSize: 14 }} onClick={() => setShowSlide(true)}>
+              🎬 Mulai Presentasi
+            </button>
+            {!ttd && (
+              <button className="btn btn-outline" style={{ padding: '10px 18px', fontSize: 14 }} onClick={openTtdModal}>
+                ✍️ Isi Data Penandatangan Dahulu
+              </button>
+            )}
+          </div>
+          {ttd && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text2)' }}>
+              ✅ Data penandatangan sudah diisi — akan tampil di slide penutup.{' '}
+              <span style={{ cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline' }} onClick={openTtdModal}>Ubah</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showSlide && (
+        <SlidePresentasi
+          tahun={tahun} jenis={jenis} kabupaten={KOTA}
+          rkpRows={rkpRows} realRows={realRows} rkpMap={rkpMap}
+          asisRows={asisRows} rekonRows={rekonRows} nOpd={nOpd}
+          pagu={paguAktif} ttd={ttd}
+          onClose={() => setShowSlide(false)}
+        />
       )}
 
       {/* ── Modal Download PDF Laporan Realisasi ── */}
