@@ -903,21 +903,21 @@ function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
   const tanggal = t.tanggal ? fmtTgl(t.tanggal) : '__________ bulan __________ tahun __________'
   return (
     <div style={{ marginTop: 30, fontSize: 11 }}>
+      <div style={{ textAlign: 'right', marginBottom: 10 }}>
+        {tempat}, {tanggal}
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
         <div style={{ textAlign: 'left', width: '46%' }}>
           <div>Koordinator DBH CHT</div>
           {t.jabatanKoordinator && <div>{t.jabatanKoordinator}</div>}
           <div>{kabupaten}</div>
-          <div style={{ marginTop: 55 }}>(__________________________)</div>
-          <div style={{ fontWeight: 'bold' }}>{t.namaKoordinator || ''}</div>
+          <div style={{ marginTop: 45, fontWeight: 'bold' }}>{t.namaKoordinator || ''}</div>
           <div>NIP. {t.nipKoordinator || ''}</div>
         </div>
         <div style={{ textAlign: 'left', width: '46%' }}>
-          <div>{tempat}, {tanggal}</div>
           <div>{t.atasNama ? `a.n. ${t.jabatanDiwakili || JABATAN_DIWAKILI_OPTIONS[0]}` : '\u00A0'}</div>
           <div>{t.jabatanPenandatangan || 'Pejabat yang Berwenang'}</div>
-          <div style={{ marginTop: 55 }}>(__________________________)</div>
-          <div style={{ fontWeight: 'bold' }}>{t.namaPejabat || ''}</div>
+          <div style={{ marginTop: 45, fontWeight: 'bold' }}>{t.namaPejabat || ''}</div>
           <div>NIP. {t.nipPejabat || ''}</div>
         </div>
       </div>
@@ -1545,6 +1545,7 @@ export default function Laporan() {
   const [showTtdModal, setShowTtdModal] = useState(false)
   const [ttdForm, setTtdForm] = useState(TTD_EMPTY)
   const [ttd, setTtd] = useState(null)
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
 
   // ── Slide Presentasi ──────────────────────────────────────────
   const [showSlide, setShowSlide] = useState(false)
@@ -1552,9 +1553,14 @@ export default function Laporan() {
 
   function openTtdModal() { setTtdForm(f => ({ ...TTD_EMPTY, ...f })); setShowTtdModal(true) }
   function generatePdf() {
+    // Pakai ttdForm langsung (bukan lewat state `ttd` + setTimeout+window.print) —
+    // teknik lama sempat menghasilkan halaman kosong karena window.print() dipanggil
+    // sebelum browser sempat me-render ulang dokumen dengan data tanda tangan baru.
+    // Sekarang dibuka lewat PrintPortal (mekanisme yang sama & sudah terbukti jalan
+    // untuk BA Asistensi/Rekonsiliasi) — dokumen langsung tampil final, tinggal klik Cetak.
     setTtd(ttdForm)
     setShowTtdModal(false)
-    setTimeout(doCetak, 100) // beri waktu render ulang blok tanda tangan sebelum print
+    setShowPdfPreview(true)
   }
 
   useEffect(() => { if (profile) loadAll() }, [tahun, jenis, profile])
@@ -1901,6 +1907,38 @@ export default function Laporan() {
         />
       )}
 
+      {/* ── Preview PDF (dari tombol "Download PDF") ──
+          Pakai PrintPortal — mekanisme cetak yang sama & terbukti berhasil untuk
+          BA Asistensi/Rekonsiliasi — bukan window.print() langsung, supaya tidak
+          menghasilkan halaman kosong. ttdForm dipakai langsung (bukan state `ttd`)
+          supaya dokumen sudah tampil final dengan data terbaru, tanpa jeda render. */}
+      {showPdfPreview && (
+        <PrintPortal title="📄 Preview PDF" onClose={() => setShowPdfPreview(false)}>
+          {menu === 'rkp' && (
+            <CetakRKP rows={rkpRows} tahun={tahun} jenis={jenis} kabupaten={KOTA} ttd={ttdForm} />
+          )}
+          {menu === 'rkp_perubahan' && (
+            <CetakRKPPerubahan
+              rows={rkpPerubahanRows} tahun={tahun} kabupaten={KOTA}
+              paguAlokasi={paguMurniInfo?.total_pagu || 0}
+              sisaSilpa={(paguPerubahanInfo?.total_pagu || 0) - (paguMurniInfo?.total_pagu || 0)}
+              ttd={ttdForm}
+            />
+          )}
+          {menu === 'realisasi_tw' && (
+            <CetakRealisasi rows={mergeRealisasi(realTw, rkpMap)} tahun={tahun}
+              label={twFilter ? 'TRIWULAN ' + twFilter : 'SEMUA TRIWULAN'}
+              kabupaten={KOTA} ttd={ttdForm} />
+          )}
+          {menu === 'realisasi_s1' && (
+            <CetakRealisasi rows={realSem1} tahun={tahun} label="SEMESTER I (TRIWULAN I DAN II)" kabupaten={KOTA} ttd={ttdForm} />
+          )}
+          {menu === 'realisasi_s2' && (
+            <CetakRealisasi rows={realSem2} tahun={tahun} label="SEMESTER II / KUMULATIF (TRIWULAN I S.D. IV)" kabupaten={KOTA} ttd={ttdForm} />
+          )}
+        </PrintPortal>
+      )}
+
       {/* ── Modal Download PDF Laporan Realisasi ── */}
       {showTtdModal && (
         <Modal title="Download PDF Laporan Realisasi" onClose={() => setShowTtdModal(false)} wide>
@@ -1981,7 +2019,7 @@ export default function Laporan() {
 
           <div className="modal-footer">
             <button className="btn btn-outline" onClick={() => setShowTtdModal(false)}>Batal</button>
-            <button className="btn btn-primary" onClick={generatePdf}>📄 Generate PDF</button>
+            <button className="btn btn-primary" onClick={generatePdf}>📄 Lihat &amp; Cetak PDF</button>
           </div>
         </Modal>
       )}
