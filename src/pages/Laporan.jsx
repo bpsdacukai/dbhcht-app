@@ -54,13 +54,18 @@ const S = {
     lineHeight: 1.5, color: '#000', background: '#fff',
     padding: '24px 28px', maxWidth: 794, margin: '0 auto',
   },
-  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8, tableLayout: 'fixed' },
+  // tableLayout 'auto' = lebar kolom menyesuaikan isi ("fit to character"), browser
+  // otomatis memberi lebih banyak ruang ke kolom dengan teks panjang (mis. Keterangan)
+  // dan mengecilkan kolom berisi angka/kode pendek — asal kolom tsb tidak di-wrap (lihat S.right/S.center).
+  tbl: { width: '100%', borderCollapse: 'collapse', fontSize: '10px', marginBottom: 8, tableLayout: 'auto' },
   td:  { border: '1px solid #000', padding: '3px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' },
   th:  { border: '1px solid #000', padding: '3px 6px', background: '#d9d9d9',
          fontWeight: 'bold', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' },
   bold: { fontWeight: 'bold' },
-  center: { textAlign: 'center' },
-  right:  { textAlign: 'right' },
+  // Dipakai untuk kolom angka (pagu, realisasi, %) & kode/label pendek (No, Vol, Sat, Triwulan, dsb) —
+  // whiteSpace 'nowrap' memastikan tidak pernah pecah ke 2 baris, kolom otomatis melebar secukupnya.
+  center: { textAlign: 'center', whiteSpace: 'nowrap' },
+  right:  { textAlign: 'right', whiteSpace: 'nowrap' },
 }
 
 // ── Tabel peserta (B. PELAKSANA) ───────────────────────────────
@@ -807,7 +812,7 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
         </tbody>
       </table>
 
-      <table style={{ ...S.tbl, fontSize: 8.5, tableLayout: 'fixed' }}>
+      <table style={{ ...S.tbl, fontSize: 8.5 }}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...S.th, width: '3%' }}>No.</th>
@@ -903,18 +908,19 @@ function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
   const tanggal = t.tanggal ? fmtTgl(t.tanggal) : '__________ bulan __________ tahun __________'
   return (
     <div style={{ marginTop: 30, fontSize: 11 }}>
-      <div style={{ textAlign: 'right', marginBottom: 10 }}>
-        {tempat}, {tanggal}
-      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
+        {/* Kolom kiri: 2 baris kosong penyeimbang supaya "Koordinator DBH CHT" sejajar
+            dengan jabatan penandatangan (mis. "Sekretaris Daerah") di kolom kanan —
+            bukan sejajar dengan baris tanggal / "a.n." yang tidak ada padanannya di kiri. */}
         <div style={{ textAlign: 'left', width: '46%' }}>
-          <div>Koordinator DBH CHT</div>
-          {t.jabatanKoordinator && <div>{t.jabatanKoordinator}</div>}
-          <div>{kabupaten}</div>
+          <div>&nbsp;</div>
+          <div>&nbsp;</div>
+          <div>Koordinator DBH CHT{t.jabatanKoordinator ? `, ${t.jabatanKoordinator}` : ''}</div>
           <div style={{ marginTop: 45, fontWeight: 'bold' }}>{t.namaKoordinator || ''}</div>
           <div>NIP. {t.nipKoordinator || ''}</div>
         </div>
         <div style={{ textAlign: 'left', width: '46%' }}>
+          <div>{tempat}, {tanggal}</div>
           <div>{t.atasNama ? `a.n. ${t.jabatanDiwakili || JABATAN_DIWAKILI_OPTIONS[0]}` : '\u00A0'}</div>
           <div>{t.jabatanPenandatangan || 'Pejabat yang Berwenang'}</div>
           <div style={{ marginTop: 45, fontWeight: 'bold' }}>{t.namaPejabat || ''}</div>
@@ -1085,7 +1091,9 @@ function ensurePrintStyle() {
     '  body { margin: 0 !important; }',
     '  body > *:not([data-simdbh-print]) { display: none !important; visibility: hidden !important; }',
     '  [data-simdbh-print] { display: block !important; visibility: visible !important; position: static !important; }',
-    '  [data-simdbh-print] .no-print-inner { display: none !important; }',
+    // ⚠️ FIX: baris lama "[data-simdbh-print] .no-print-inner { display:none }" DIHAPUS —
+    // .no-print-inner justru pembungkus dokumen yang akan dicetak (lihat PrintPortal di bawah),
+    // jadi aturan itu menyembunyikan seluruh isi dokumen saat mencetak → halaman jadi putih kosong.
     '}',
   ].join('\n')
   document.head.appendChild(s)
