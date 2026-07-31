@@ -161,15 +161,17 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
 
   const nomorDoc = fmtNomorAsist(data.nomor_ba, data.tanggal)
 
-  const hasilItems = [
-    { no: 1, uraian: 'Kesesuaian bidang penggunaan DBH CHT',    catatan: data.hasil_pembahasan || '' },
-    { no: 2, uraian: 'Kesesuaian indikator dan target',          catatan: '' },
-    { no: 3, uraian: 'Kesesuaian komponen belanja',              catatan: '' },
-    { no: 4, uraian: 'Kesesuaian dengan PMK terkait DBH CHT',   catatan: data.catatan || '' },
-    { no: 5, uraian: 'Kelengkapan dokumen pendukung',            catatan: '' },
-    { no: 6, uraian: 'Efisiensi dan efektivitas anggaran',       catatan: '' },
-    { no: 7, uraian: 'Catatan lainnya',                          catatan: '' },
-  ]
+  const hasilItems = Array.isArray(data.hasil_asistensi) && data.hasil_asistensi.length > 0
+  ? data.hasil_asistensi
+  : [
+      { no: 1, uraian: 'Kesesuaian bidang penggunaan DBH CHT',   catatan: data.hasil_pembahasan || '', tindak_lanjut: data.tindak_lanjut || '' },
+      { no: 2, uraian: 'Kesesuaian indikator dan target',         catatan: '', tindak_lanjut: '' },
+      { no: 3, uraian: 'Kesesuaian komponen belanja',             catatan: '', tindak_lanjut: '' },
+      { no: 4, uraian: 'Kesesuaian dengan PMK terkait DBH CHT',   catatan: data.catatan || '', tindak_lanjut: '' },
+      { no: 5, uraian: 'Kelengkapan dokumen pendukung',           catatan: '', tindak_lanjut: '' },
+      { no: 6, uraian: 'Efisiensi dan efektivitas anggaran',      catatan: '', tindak_lanjut: '' },
+      { no: 7, uraian: 'Catatan lainnya',                         catatan: '', tindak_lanjut: '' },
+    ]
 
   return (
     <div style={S.doc}>
