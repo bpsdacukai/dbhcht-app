@@ -183,16 +183,20 @@ const EMPTY_FORM = {
     }))
   }
 
-  async function genAI() {
-    if (!form.hasil_pembahasan) { notify('Isi hasil pembahasan terlebih dahulu','warn'); return }
-    setAiLoad(true)
-    const text = await tindakLanjutAsistensi({
-      opd:form.opd, program:form.program,
-      hasil:form.hasil_pembahasan, catatan:form.catatan
-    })
-    setForm(f=>({...f, tindak_lanjut:text}))
-    setAiLoad(false)
-  }
+  async function genAI(idx) {
+  const item = form.hasil_asistensi[idx]
+  if (!item.catatan) { notify('Isi catatan/hasil pembahasan baris ini terlebih dahulu','warn'); return }
+  setAiLoad(idx)
+  const text = await tindakLanjutAsistensi({
+    opd:form.opd, program:form.program, hasil:item.catatan, catatan:item.uraian
+  })
+  setForm(f=>{
+    const items = [...f.hasil_asistensi]
+    items[idx] = { ...items[idx], tindak_lanjut:text }
+    return { ...f, hasil_asistensi:items }
+  })
+  setAiLoad(false)
+}
 
   async function save() {
     if (!form.opd||!form.program) { notify('OPD dan Program wajib!','warn'); return }
