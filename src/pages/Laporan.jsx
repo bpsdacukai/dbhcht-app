@@ -27,12 +27,15 @@ function fmtNomorAsist(noBA, tanggal) {
   return `027/${urut}/HA-RKP/${KODE_WILAYAH}/${tahun}`
 }
 
-// Format nomor BA rekonsiliasi: 027/001/HA-Rekon/35.79.121/2026
-function fmtNomorRekon(noBA, tanggal) {
+// Format nomor BA rekonsiliasi: 027/001/HA-Rekon/TW.II/35.79.121/2026
+// Segmen triwulan ditambahkan agar setiap periode rekonsiliasi (TW.I–TW.IV)
+// punya nomor yang jelas berbeda meski nomor urut sama.
+function fmtNomorRekon(noBA, tanggal, triwulan) {
   const tgl   = tanggal ? new Date(tanggal) : new Date()
   const tahun = tgl.getFullYear()
   const urut  = noBA ? String(noBA).padStart(3, '0') : '___'
-  return `027/${urut}/HA-Rekon/${KODE_WILAYAH}/${tahun}`
+  const tw    = triwulan ? `TW.${triwulan}` : 'TW.___'
+  return `027/${urut}/HA-Rekon/${tw}/${KODE_WILAYAH}/${tahun}`
 }
 
 function fmtHari(tgl) {
@@ -338,7 +341,7 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
   const po    = Array.isArray(data.peserta_opd)         ? data.peserta_opd         : []
   const snap  = Array.isArray(data.realisasi_snapshot)  ? data.realisasi_snapshot  : []
   const tahun = getYear(data.tanggal)
-  const nomorDoc = fmtNomorRekon(data.nomor_ba, data.tanggal)
+  const nomorDoc = fmtNomorRekon(data.nomor_ba, data.tanggal, data.triwulan)
 
   return (
     <div style={S.doc}>
@@ -374,7 +377,7 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
             [1, 'Nama Perangkat Daerah',    data.opd || ''],
             [2, 'Program',                   data.program || ''],
             [3, 'Kegiatan',                  data.kegiatan || ''],
-            [4, 'Sub Kegiatan',              ''],
+            [4, 'Sub Kegiatan',              data.sub_kegiatan || ''],
             [5, 'Bidang Penggunaan DBH CHT', (() => {
               const b = [...BIDANG, KOORDINASI].find(x => x.id === data.bidang_id)
               return b ? b.label : ''
@@ -410,25 +413,19 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
         <tbody>
           <tr>
             <td style={{ ...S.td, ...S.center }}>1</td>
-            <td style={S.td}><strong>Program</strong><br />{data.program || ''}</td>
+            <td style={S.td}>
+              <strong>Program</strong><br />{data.program || ''}
+              {data.kegiatan && <><br /><strong>Kegiatan</strong><br />{data.kegiatan}</>}
+              {data.sub_kegiatan && <><br /><strong>Sub Kegiatan</strong><br />{data.sub_kegiatan}</>}
+            </td>
             <td style={{ ...S.td, ...S.right }}>{fmt(data.pagu || 0)}</td>
             <td style={{ ...S.td, ...S.right }}>{fmt(data.realisasi_keu || 0)}</td>
             <td style={{ ...S.td, ...S.center }}>{data.realisasi_fisik || 0}%</td>
             <td style={S.td}></td>
           </tr>
-          <tr>
-            <td style={{ ...S.td, ...S.center }}>2</td>
-            <td style={S.td}><strong>Kegiatan</strong><br />{data.kegiatan || ''}</td>
-            <td style={S.td}></td><td style={S.td}></td><td style={S.td}></td><td style={S.td}></td>
-          </tr>
-          <tr>
-            <td style={{ ...S.td, ...S.center }}>3</td>
-            <td style={S.td}><strong>Sub Kegiatan</strong><br />{data.sub_kegiatan || ''}</td>
-            <td style={S.td}></td><td style={S.td}></td><td style={S.td}></td><td style={S.td}></td>
-          </tr>
           {snap.length > 0 && snap.map((r, i) => (
             <tr key={'snap-' + i}>
-              <td style={{ ...S.td, ...S.center }}>{i + 4}</td>
+              <td style={{ ...S.td, ...S.center }}>{i + 2}</td>
               <td style={S.td}>{r.program}{r.kegiatan ? ' — ' + r.kegiatan : ''}</td>
               <td style={{ ...S.td, ...S.right }}>{fmt(r.pagu || 0)}</td>
               <td style={{ ...S.td, ...S.right }}>{fmt(r.realisasi_keu || 0)}</td>
@@ -443,11 +440,11 @@ export function CetakRekonsiliasi({ data, kabupaten = KOTA }) {
       <table style={{ ...S.tbl, marginBottom: 12 }}>
         <thead>
           <tr>
-            <th style={{ ...S.th, width: 28 }}>No</th>
+            <th style={{ ...S.th, width: 26 }}>No</th>
             <th style={S.th}>Permasalahan/Hambatan</th>
-            <th style={{ ...S.th, width: 155 }}>Tindak Lanjut</th>
-            <th style={{ ...S.th, width: 110 }}>Penanggung Jawab</th>
-            <th style={{ ...S.th, width: 90 }}>Target Penyelesaian</th>
+            <th style={{ ...S.th, width: 140 }}>Tindak Lanjut</th>
+            <th style={{ ...S.th, width: 95 }}>Penanggung Jawab</th>
+            <th style={{ ...S.th, width: 105, wordBreak: 'normal' }}>Target<br />Penyelesaian</th>
           </tr>
         </thead>
         <tbody>
@@ -598,7 +595,7 @@ export function RekapRekonsiliasi({ rows = [], tahun, triwulan, kabupaten = KOTA
             return (
               <tr key={r.id}>
                 <td style={{ ...S.td, ...S.center }}>{i + 1}</td>
-                <td style={{ ...S.td, fontSize: 9 }}>{fmtNomorRekon(r.nomor_ba, r.tanggal)}</td>
+                <td style={{ ...S.td, fontSize: 9 }}>{fmtNomorRekon(r.nomor_ba, r.tanggal, r.triwulan)}</td>
                 <td style={{ ...S.td, whiteSpace: 'nowrap' }}>{r.tanggal}</td>
                 <td style={S.td}>{r.opd}</td>
                 <td style={S.td}>{r.program}</td>
@@ -1755,7 +1752,7 @@ export default function Laporan() {
                   const pct = r.pagu > 0 ? ((r.realisasi_keu / r.pagu) * 100).toFixed(1) : '0.0'
                   return (
                     <tr key={r.id}>
-                      <td style={{ fontSize: '.78rem' }}>{fmtNomorRekon(r.nomor_ba, r.tanggal)}</td>
+                      <td style={{ fontSize: '.78rem' }}>{fmtNomorRekon(r.nomor_ba, r.tanggal, r.triwulan)}</td>
                       <td className="td-muted" style={{ whiteSpace: 'nowrap' }}>{r.tanggal}</td>
                       <td className="td-bold">{r.opd}</td>
                       <td><span className="badge badge-blue">Tw {r.triwulan}</span></td>
