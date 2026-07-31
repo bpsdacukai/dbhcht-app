@@ -333,7 +333,8 @@ const EMPTY_FORM = {
 
       {/* Modal form tambah BA — hanya sekretariat */}
       {modal && isSekretariat && (
-        <Modal title="📝 Berita Acara Asistensi" onClose={()=>setModal(false)} wide>
+        <Modal title={editId ? '✏️ Edit Berita Acara Asistensi' : '📝 Berita Acara Asistensi'}
+  onClose={()=>{ setModal(false); setEditId(null) }} wide>
           <div className="form-row">
             <div className="form-group" style={{ flex:1 }}>
               <label className="form-label">Nomor BA</label>
