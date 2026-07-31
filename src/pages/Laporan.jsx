@@ -297,7 +297,7 @@ export function CetakAistensi({ data, kabupaten = KOTA }) {
               <td style={{ ...S.td, ...S.center }}>{item.no}</td>
               <td style={S.td}>{item.uraian}</td>
               <td style={{ ...S.td, minHeight: 22 }}>{item.catatan}</td>
-              <td style={{ ...S.td, minHeight: 22 }}></td>
+              <td style={{ ...S.td, minHeight: 22 }}>{item.tindak_lanjut}</td>
             </tr>
           ))}
         </tbody>
