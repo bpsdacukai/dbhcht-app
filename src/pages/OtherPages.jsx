@@ -107,6 +107,7 @@ export function Asistensi() {
   const [rkpOPD,  setRkpOPD]  = useState([])
   const [aiLoad,  setAiLoad]  = useState(false)
   const [loading, setLoading] = useState(false)
+  const [editId,  setEditId]  = useState(null)
   const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
 
   const KRITERIA_ASISTENSI = [
@@ -497,6 +498,7 @@ export function Rekonsiliasi() {
   const [realOPD, setRealOPD] = useState([])
   const [aiLoad,  setAiLoad]  = useState(false)
   const [loading, setLoading] = useState(false)
+  const [editId,  setEditId]  = useState(null)
   const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
 
   const EMPTY_FORM = {
