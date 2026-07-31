@@ -109,14 +109,24 @@ export function Asistensi() {
   const [loading, setLoading] = useState(false)
   const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
 
-  const EMPTY_FORM = {
-    nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
-    opd:'', opd_user_id:'', bidang_id:'kesmas',
-    program:'', kegiatan:'', sub_kegiatan:'', pagu_usulan:'',
-    peserta_sekretariat:[], peserta_opd:[],
-    hasil_pembahasan:'', catatan:'', tindak_lanjut:'',
-    kesimpulan:'dapat_ditindaklanjuti', rkp_snapshot:[]
-  }
+  const KRITERIA_ASISTENSI = [
+  { no:1, uraian:'Kesesuaian bidang penggunaan DBH CHT' },
+  { no:2, uraian:'Kesesuaian indikator dan target' },
+  { no:3, uraian:'Kesesuaian komponen belanja' },
+  { no:4, uraian:'Kesesuaian dengan PMK terkait DBH CHT' },
+  { no:5, uraian:'Kelengkapan dokumen pendukung' },
+  { no:6, uraian:'Efisiensi dan efektivitas anggaran' },
+  { no:7, uraian:'Catatan lainnya' },
+]
+
+const EMPTY_FORM = {
+  nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
+  opd:'', opd_user_id:'', bidang_id:'kesmas',
+  program:'', kegiatan:'', sub_kegiatan:'', pagu_usulan:'',
+  peserta_sekretariat:[], peserta_opd:[],
+  hasil_asistensi: KRITERIA_ASISTENSI.map(k => ({ ...k, catatan:'', tindak_lanjut:'' })),
+  kesimpulan:'dapat_ditindaklanjuti', rkp_snapshot:[]
+}
   const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => { load(); loadOpds() }, [tahun])
