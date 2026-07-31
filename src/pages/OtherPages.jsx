@@ -220,7 +220,29 @@ const EMPTY_FORM = {
   setModal(true)
 }
   
-  async function save()
+  async function save() {
+  if (!form.opd||!form.program) { notify('OPD dan Program wajib!','warn'); return }
+  setLoading(true)
+  const payload = {
+    tahun, tanggal:form.tanggal, nomor_ba:form.nomor_ba, tempat:form.tempat,
+    opd:form.opd, opd_user_id:form.opd_user_id||null,
+    bidang_id:form.bidang_id, program:form.program,
+    kegiatan:form.kegiatan, sub_kegiatan:form.sub_kegiatan,
+    pagu_usulan:Number(form.pagu_usulan)||0,
+    peserta_sekretariat:form.peserta_sekretariat,
+    peserta_opd:form.peserta_opd,
+    hasil_asistensi:form.hasil_asistensi,
+    kesimpulan:form.kesimpulan,
+    rkp_snapshot:form.rkp_snapshot,
+  }
+  const { error } = editId
+    ? await supabase.from('asistensi_dbhcht').update(payload).eq('id', editId)
+    : await supabase.from('asistensi_dbhcht').insert({ ...payload, created_by:profile?.id })
+  setLoading(false)
+  if (error) { notify('Gagal: '+error.message,'error'); return }
+  notify(editId ? 'Berita Acara Asistensi diperbarui' : 'Berita Acara Asistensi tersimpan','success')
+  setModal(false); setEditId(null); load()
+}
 
   async function del(id) {
     if (!confirm('Hapus BA ini?')) return
