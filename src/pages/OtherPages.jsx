@@ -96,15 +96,15 @@ function PesertaEditor({ label, peserta, onChange }) {
   )
 }
 
-// ── 7 kriteria baku Hasil Asistensi (sesuai Lampiran PMK 22/2026) ──
+// ── Kriteria Hasil Asistensi — disederhanakan menjadi 3 kriteria inti ──
+// PMK 22/2026 sendiri tidak mewajibkan checklist 7 kriteria; yang diwajibkan
+// (Pasal 14 ayat 2) hanya memastikan RKP memuat pagu, sisa dana, rincian
+// kegiatan, target keluaran, dan rincian pendanaan. 3 kriteria di bawah ini
+// merangkum pengecekan tersebut secara lebih ringkas.
 const KRITERIA_ASISTENSI = [
-  { no:1, uraian:'Kesesuaian bidang penggunaan DBH CHT' },
-  { no:2, uraian:'Kesesuaian indikator dan target' },
-  { no:3, uraian:'Kesesuaian komponen belanja' },
-  { no:4, uraian:'Kesesuaian dengan PMK terkait DBH CHT' },
-  { no:5, uraian:'Kelengkapan dokumen pendukung' },
-  { no:6, uraian:'Efisiensi dan efektivitas anggaran' },
-  { no:7, uraian:'Catatan lainnya' },
+  { no:1, uraian:'Kesesuaian Program/Kegiatan dengan PMK 22/2026' },
+  { no:2, uraian:'Kelengkapan Target & Pendanaan' },
+  { no:3, uraian:'Catatan Lainnya' },
 ]
 
 // ── ASISTENSI ──────────────────────────────────────────────────
@@ -434,7 +434,7 @@ export function Asistensi() {
             onChange={v=>setForm(f=>({...f,peserta_opd:v}))} />
           <hr className="divider" />
 
-          {/* C. Hasil Asistensi — 7 kriteria sesuai lampiran resmi */}
+          {/* C. Hasil Asistensi — 3 kriteria inti (disederhanakan, berpedoman Pasal 14 ayat 2 PMK 22/2026) */}
           <div className="form-group">
             <label className="form-label">C. Hasil Asistensi</label>
             <table className="form-control" style={{ padding:0, borderCollapse:'collapse', width:'100%' }}>
