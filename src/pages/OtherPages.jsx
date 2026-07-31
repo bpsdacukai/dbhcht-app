@@ -514,7 +514,7 @@ export function Rekonsiliasi() {
   const EMPTY_FORM = {
     nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
     opd:'', opd_user_id:'', triwulan:'I',
-    program:'', kegiatan:'', pagu:'', realisasi_keu:'', realisasi_fisik:'',
+    program:'', kegiatan:'', sub_kegiatan:'', pagu:'', realisasi_keu:'', realisasi_fisik:'',
     peserta_sekretariat:[], peserta_opd:[],
     permasalahan:'', tindak_lanjut:'', penanggung_jawab:'',
     kesimpulan:'sesuai', realisasi_snapshot:[]
@@ -542,7 +542,7 @@ export function Rekonsiliasi() {
   // FIX: semua OPD mendapat akses yang sama tanpa filter bidang khusus
   async function onSelectOpd(opdNama, opdId) {
     setForm(f=>({ ...f, opd:opdNama, opd_user_id:opdId,
-      program:'', kegiatan:'', pagu:'', realisasi_keu:'', realisasi_snapshot:[] }))
+      program:'', kegiatan:'', sub_kegiatan:'', pagu:'', realisasi_keu:'', realisasi_snapshot:[] }))
     if (!opdId) { setRealOPD([]); return }
     // Load realisasi dari OPD ini (semua triwulan, tanpa filter bidang)
     const { data } = await supabase.from('realisasi_dbhcht').select('*')
@@ -560,6 +560,8 @@ export function Rekonsiliasi() {
       setForm(f=>({
         ...f,
         program:      realOPD[0]?.program||'',
+        kegiatan:     realOPD[0]?.kegiatan||'',
+        sub_kegiatan: realOPD[0]?.sub_kegiatan||'',
         pagu:         String(totalPagu),
         realisasi_keu: String(totalReal),
         realisasi_fisik: String(avgFisik),
@@ -573,6 +575,7 @@ export function Rekonsiliasi() {
       ...f,
       program:         r.program||'',
       kegiatan:        r.kegiatan||'',
+      sub_kegiatan:    r.sub_kegiatan||'',
       pagu:            String(r.pagu||0),
       realisasi_keu:   String(r.realisasi_keu||0),
       realisasi_fisik: String(r.realisasi_fisik||0),
@@ -597,7 +600,7 @@ export function Rekonsiliasi() {
     setForm({
       nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
       opd:r.opd||'', opd_user_id:r.opd_user_id||'', triwulan:r.triwulan||'I',
-      program:r.program||'', kegiatan:r.kegiatan||'',
+      program:r.program||'', kegiatan:r.kegiatan||'', sub_kegiatan:r.sub_kegiatan||'',
       pagu:String(r.pagu||''), realisasi_keu:String(r.realisasi_keu||''),
       realisasi_fisik:String(r.realisasi_fisik||''),
       peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
@@ -620,7 +623,7 @@ export function Rekonsiliasi() {
       tahun, triwulan:form.triwulan, tanggal:form.tanggal,
       nomor_ba:form.nomor_ba, tempat:form.tempat,
       opd:form.opd, opd_user_id:form.opd_user_id||null,
-      program:form.program, kegiatan:form.kegiatan,
+      program:form.program, kegiatan:form.kegiatan, sub_kegiatan:form.sub_kegiatan,
       pagu:Number(form.pagu)||0,
       realisasi_keu:Number(form.realisasi_keu)||0,
       realisasi_fisik:Number(form.realisasi_fisik)||0,
@@ -799,9 +802,17 @@ export function Rekonsiliasi() {
                 onChange={e=>setForm({...form,program:e.target.value})} />
             </div>
             <div className="form-group" style={{ flex:2 }}>
-              <label className="form-label">Kegiatan/Sub Kegiatan</label>
+              <label className="form-label">Kegiatan</label>
               <input className="form-control" value={form.kegiatan}
                 onChange={e=>setForm({...form,kegiatan:e.target.value})} />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{ flex:1 }}>
+              <label className="form-label">Sub Kegiatan</label>
+              <input className="form-control" value={form.sub_kegiatan}
+                onChange={e=>setForm({...form,sub_kegiatan:e.target.value})} />
             </div>
           </div>
 
