@@ -602,6 +602,27 @@ export function Rekonsiliasi() {
     setAiLoad(false)
   }
 
+  function edit(r) {
+  setEditId(r.id)
+  setForm({
+    nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
+    opd:r.opd||'', opd_user_id:r.opd_user_id||'', bidang_id:r.bidang_id||'kesmas',
+    program:r.program||'', kegiatan:r.kegiatan||'', sub_kegiatan:r.sub_kegiatan||'',
+    pagu_usulan:String(r.pagu_usulan||''),
+    peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
+    hasil_asistensi: Array.isArray(r.hasil_asistensi) && r.hasil_asistensi.length>0
+      ? r.hasil_asistensi
+      : KRITERIA_ASISTENSI.map(k=>({...k, catatan:'', tindak_lanjut:''})),
+    kesimpulan:r.kesimpulan||'dapat_ditindaklanjuti',
+    rkp_snapshot:r.rkp_snapshot||[],
+  })
+  if (r.opd_user_id) {
+    supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('created_by', r.opd_user_id).order('created_at')
+      .then(({data})=>setRkpOPD(data||[]))
+  }
+  setModal(true)
+}
+  
   async function save() {
     if (!form.opd) { notify('OPD wajib!','warn'); return }
     setLoading(true)
