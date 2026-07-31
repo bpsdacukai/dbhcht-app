@@ -96,21 +96,8 @@ function PesertaEditor({ label, peserta, onChange }) {
   )
 }
 
-// ── ASISTENSI ──────────────────────────────────────────────────
-export function Asistensi() {
-  const { tahun, notify } = useApp()
-  const { profile, isSekretariat } = useAuth()
-  const [rows,    setRows]    = useState([])
-  const [modal,   setModal]   = useState(false)
-  const [preview, setPreview] = useState(null) // BA untuk preview/cetak
-  const [opds,    setOpds]    = useState([])
-  const [rkpOPD,  setRkpOPD]  = useState([])
-  const [aiLoad,  setAiLoad]  = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [editId,  setEditId]  = useState(null)
-  const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
-
-  const KRITERIA_ASISTENSI = [
+// ── 7 kriteria baku Hasil Asistensi (sesuai Lampiran PMK 22/2026) ──
+const KRITERIA_ASISTENSI = [
   { no:1, uraian:'Kesesuaian bidang penggunaan DBH CHT' },
   { no:2, uraian:'Kesesuaian indikator dan target' },
   { no:3, uraian:'Kesesuaian komponen belanja' },
@@ -120,14 +107,28 @@ export function Asistensi() {
   { no:7, uraian:'Catatan lainnya' },
 ]
 
-const EMPTY_FORM = {
-  nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
-  opd:'', opd_user_id:'', bidang_id:'kesmas',
-  program:'', kegiatan:'', sub_kegiatan:'', pagu_usulan:'',
-  peserta_sekretariat:[], peserta_opd:[],
-  hasil_asistensi: KRITERIA_ASISTENSI.map(k => ({ ...k, catatan:'', tindak_lanjut:'' })),
-  kesimpulan:'dapat_ditindaklanjuti', rkp_snapshot:[]
-}
+// ── ASISTENSI ──────────────────────────────────────────────────
+export function Asistensi() {
+  const { tahun, notify } = useApp()
+  const { profile, isSekretariat } = useAuth()
+  const [rows,    setRows]    = useState([])
+  const [modal,   setModal]   = useState(false)
+  const [preview, setPreview] = useState(null) // BA untuk preview/cetak
+  const [opds,    setOpds]    = useState([])
+  const [rkpOPD,  setRkpOPD]  = useState([])
+  const [aiLoad,  setAiLoad]  = useState(false) // false | index baris yang sedang di-generate
+  const [loading, setLoading] = useState(false)
+  const [editId,  setEditId]  = useState(null)  // null = tambah baru, terisi = mode edit
+  const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
+
+  const EMPTY_FORM = {
+    nomor_ba:'', tanggal:new Date().toISOString().slice(0,10), tempat:'',
+    opd:'', opd_user_id:'', bidang_id:'kesmas',
+    program:'', kegiatan:'', sub_kegiatan:'', pagu_usulan:'',
+    peserta_sekretariat:[], peserta_opd:[],
+    hasil_asistensi: KRITERIA_ASISTENSI.map(k => ({ ...k, catatan:'', tindak_lanjut:'' })),
+    kesimpulan:'dapat_ditindaklanjuti', rkp_snapshot:[]
+  }
   const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => { load(); loadOpds() }, [tahun])
@@ -184,65 +185,67 @@ const EMPTY_FORM = {
     }))
   }
 
+  // Generate AI Tindak Lanjut untuk 1 baris kriteria (idx = index di array hasil_asistensi)
   async function genAI(idx) {
-  const item = form.hasil_asistensi[idx]
-  if (!item.catatan) { notify('Isi catatan/hasil pembahasan baris ini terlebih dahulu','warn'); return }
-  setAiLoad(idx)
-  const text = await tindakLanjutAsistensi({
-    opd:form.opd, program:form.program, hasil:item.catatan, catatan:item.uraian
-  })
-  setForm(f=>{
-    const items = [...f.hasil_asistensi]
-    items[idx] = { ...items[idx], tindak_lanjut:text }
-    return { ...f, hasil_asistensi:items }
-  })
-  setAiLoad(false)
-}
+    const item = form.hasil_asistensi[idx]
+    if (!item.catatan) { notify('Isi catatan/hasil pembahasan baris ini terlebih dahulu','warn'); return }
+    setAiLoad(idx)
+    const text = await tindakLanjutAsistensi({
+      opd:form.opd, program:form.program, hasil:item.catatan, catatan:item.uraian
+    })
+    setForm(f=>{
+      const items = [...f.hasil_asistensi]
+      items[idx] = { ...items[idx], tindak_lanjut:text }
+      return { ...f, hasil_asistensi:items }
+    })
+    setAiLoad(false)
+  }
 
+  // Buka modal dalam mode EDIT, isi form dari data baris yang dipilih
   function edit(r) {
-  setEditId(r.id)
-  setForm({
-    nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
-    opd:r.opd||'', opd_user_id:r.opd_user_id||'', bidang_id:r.bidang_id||'kesmas',
-    program:r.program||'', kegiatan:r.kegiatan||'', sub_kegiatan:r.sub_kegiatan||'',
-    pagu_usulan:String(r.pagu_usulan||''),
-    peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
-    hasil_asistensi: Array.isArray(r.hasil_asistensi) && r.hasil_asistensi.length>0
-      ? r.hasil_asistensi
-      : KRITERIA_ASISTENSI.map(k=>({...k, catatan:'', tindak_lanjut:''})),
-    kesimpulan:r.kesimpulan||'dapat_ditindaklanjuti',
-    rkp_snapshot:r.rkp_snapshot||[],
-  })
-  if (r.opd_user_id) {
-    supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('created_by', r.opd_user_id).order('created_at')
-      .then(({data})=>setRkpOPD(data||[]))
+    setEditId(r.id)
+    setForm({
+      nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
+      opd:r.opd||'', opd_user_id:r.opd_user_id||'', bidang_id:r.bidang_id||'kesmas',
+      program:r.program||'', kegiatan:r.kegiatan||'', sub_kegiatan:r.sub_kegiatan||'',
+      pagu_usulan:String(r.pagu_usulan||''),
+      peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
+      hasil_asistensi: Array.isArray(r.hasil_asistensi) && r.hasil_asistensi.length>0
+        ? r.hasil_asistensi
+        : KRITERIA_ASISTENSI.map(k=>({...k, catatan:'', tindak_lanjut:''})),
+      kesimpulan:r.kesimpulan||'dapat_ditindaklanjuti',
+      rkp_snapshot:r.rkp_snapshot||[],
+    })
+    if (r.opd_user_id) {
+      supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('created_by', r.opd_user_id).order('created_at')
+        .then(({data})=>setRkpOPD(data||[]))
+    }
+    setModal(true)
   }
-  setModal(true)
-}
-  
+
   async function save() {
-  if (!form.opd||!form.program) { notify('OPD dan Program wajib!','warn'); return }
-  setLoading(true)
-  const payload = {
-    tahun, tanggal:form.tanggal, nomor_ba:form.nomor_ba, tempat:form.tempat,
-    opd:form.opd, opd_user_id:form.opd_user_id||null,
-    bidang_id:form.bidang_id, program:form.program,
-    kegiatan:form.kegiatan, sub_kegiatan:form.sub_kegiatan,
-    pagu_usulan:Number(form.pagu_usulan)||0,
-    peserta_sekretariat:form.peserta_sekretariat,
-    peserta_opd:form.peserta_opd,
-    hasil_asistensi:form.hasil_asistensi,
-    kesimpulan:form.kesimpulan,
-    rkp_snapshot:form.rkp_snapshot,
+    if (!form.opd||!form.program) { notify('OPD dan Program wajib!','warn'); return }
+    setLoading(true)
+    const payload = {
+      tahun, tanggal:form.tanggal, nomor_ba:form.nomor_ba, tempat:form.tempat,
+      opd:form.opd, opd_user_id:form.opd_user_id||null,
+      bidang_id:form.bidang_id, program:form.program,
+      kegiatan:form.kegiatan, sub_kegiatan:form.sub_kegiatan,
+      pagu_usulan:Number(form.pagu_usulan)||0,
+      peserta_sekretariat:form.peserta_sekretariat,
+      peserta_opd:form.peserta_opd,
+      hasil_asistensi:form.hasil_asistensi,
+      kesimpulan:form.kesimpulan,
+      rkp_snapshot:form.rkp_snapshot,
+    }
+    const { error } = editId
+      ? await supabase.from('asistensi_dbhcht').update(payload).eq('id', editId)
+      : await supabase.from('asistensi_dbhcht').insert({ ...payload, created_by:profile?.id })
+    setLoading(false)
+    if (error) { notify('Gagal: '+error.message,'error'); return }
+    notify(editId ? 'Berita Acara Asistensi diperbarui' : 'Berita Acara Asistensi tersimpan','success')
+    setModal(false); setEditId(null); load()
   }
-  const { error } = editId
-    ? await supabase.from('asistensi_dbhcht').update(payload).eq('id', editId)
-    : await supabase.from('asistensi_dbhcht').insert({ ...payload, created_by:profile?.id })
-  setLoading(false)
-  if (error) { notify('Gagal: '+error.message,'error'); return }
-  notify(editId ? 'Berita Acara Asistensi diperbarui' : 'Berita Acara Asistensi tersimpan','success')
-  setModal(false); setEditId(null); load()
-}
 
   async function del(id) {
     if (!confirm('Hapus BA ini?')) return
@@ -258,12 +261,10 @@ const EMPTY_FORM = {
       <PageHeader title="🤝 Asistensi RKP DBH CHT">
         {/* Hanya sekretariat yang bisa membuat BA baru */}
         {isSekretariat && (
-          <button className="btn btn-primary btn-sm" onClick={()=>{ setForm(EMPTY_FORM); setRkpOPD([]); setModal(true) }}>
+          <button className="btn btn-primary btn-sm"
+            onClick={()=>{ setForm(EMPTY_FORM); setEditId(null); setRkpOPD([]); setModal(true) }}>
             + Tambah BA
           </button>
-      <button className="btn btn-primary btn-sm" onClick={()=>{ setForm(EMPTY_FORM); setEditId(null); setRkpOPD([]); setModal(true) }}>
-  + Tambah BA
-</button>
         )}
       </PageHeader>
 
@@ -310,6 +311,7 @@ const EMPTY_FORM = {
                   </td>
                   <td>
                     <div className="action-row">
+                      {isSekretariat && <button className="btn btn-outline btn-sm" onClick={()=>edit(r)}>✏️ Edit</button>}
                       <button className="btn btn-primary btn-sm" onClick={()=>setPreview(r)}>👁️ Lihat</button>
                       {isSekretariat && <DelBtn onClick={()=>del(r.id)} />}
                     </div>
@@ -331,10 +333,10 @@ const EMPTY_FORM = {
         />
       )}
 
-      {/* Modal form tambah BA — hanya sekretariat */}
+      {/* Modal form tambah/edit BA — hanya sekretariat */}
       {modal && isSekretariat && (
         <Modal title={editId ? '✏️ Edit Berita Acara Asistensi' : '📝 Berita Acara Asistensi'}
-  onClose={()=>{ setModal(false); setEditId(null) }} wide>
+          onClose={()=>{ setModal(false); setEditId(null) }} wide>
           <div className="form-row">
             <div className="form-group" style={{ flex:1 }}>
               <label className="form-label">Nomor BA</label>
@@ -424,66 +426,57 @@ const EMPTY_FORM = {
           </div>
 
           <hr className="divider" />
-<label className="form-label">C. Hasil Asistensi</label>
-<table className="form-control" style={{ padding:0, borderCollapse:'collapse', width:'100%' }}>
-  <thead>
-    <tr>
-      <th style={{ width:24, fontSize:11 }}>No</th>
-      <th style={{ width:'26%', fontSize:11 }}>Uraian</th>
-      <th style={{ fontSize:11 }}>Hasil Pembahasan / Catatan</th>
-      <th style={{ width:'28%', fontSize:11 }}>Tindak Lanjut</th>
-    </tr>
-  </thead>
-  <tbody>
-    {form.hasil_asistensi.map((item, idx) => (
-      <tr key={item.no}>
-        <td style={{ textAlign:'center', fontSize:12 }}>{item.no}</td>
-        <td style={{ fontSize:12 }}>{item.uraian}</td>
-        <td>
-          <textarea className="form-control" rows={2} value={item.catatan}
-            onChange={e=>setForm(f=>{
-              const items=[...f.hasil_asistensi]; items[idx]={...items[idx],catatan:e.target.value}
-              return {...f, hasil_asistensi:items}
-            })} />
-        </td>
-        <td>
-          <div style={{ display:'flex', gap:4 }}>
-            <textarea className="form-control ai-box" rows={2} value={item.tindak_lanjut}
-              onChange={e=>setForm(f=>{
-                const items=[...f.hasil_asistensi]; items[idx]={...items[idx],tindak_lanjut:e.target.value}
-                return {...f, hasil_asistensi:items}
-              })} />
-            <button className="btn btn-ai btn-sm" onClick={()=>genAI(idx)} disabled={aiLoad===idx} title="Generate AI">
-              {aiLoad===idx ? '⏳' : '✨'}
-            </button>
-          </div>
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+          <PesertaEditor label="👥 Peserta Sekretariat Tim Koordinasi"
+            peserta={form.peserta_sekretariat}
+            onChange={v=>setForm(f=>({...f,peserta_sekretariat:v}))} />
+          <PesertaEditor label="👥 Peserta OPD"
+            peserta={form.peserta_opd}
+            onChange={v=>setForm(f=>({...f,peserta_opd:v}))} />
+          <hr className="divider" />
 
-<div className="form-group" style={{ marginTop:8 }}>
-  <label className="form-label">Kesimpulan</label>
-  <select className="form-control" value={form.kesimpulan}
-    onChange={e=>setForm({...form,kesimpulan:e.target.value})}>
-    <option value="dapat_ditindaklanjuti">✅ Dapat ditindaklanjuti pada tahapan penganggaran berikutnya</option>
-    <option value="perlu_perbaikan">⚠️ Perlu dilakukan perbaikan/penyesuaian sebagaimana hasil asistensi</option>
-  </select>
-</div>
+          {/* C. Hasil Asistensi — 7 kriteria sesuai lampiran resmi */}
+          <div className="form-group">
+            <label className="form-label">C. Hasil Asistensi</label>
+            <table className="form-control" style={{ padding:0, borderCollapse:'collapse', width:'100%' }}>
+              <thead>
+                <tr>
+                  <th style={{ width:24, fontSize:11 }}>No</th>
+                  <th style={{ width:'26%', fontSize:11 }}>Uraian</th>
+                  <th style={{ fontSize:11 }}>Hasil Pembahasan / Catatan</th>
+                  <th style={{ width:'28%', fontSize:11 }}>Tindak Lanjut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.hasil_asistensi.map((item, idx) => (
+                  <tr key={item.no}>
+                    <td style={{ textAlign:'center', fontSize:12 }}>{item.no}</td>
+                    <td style={{ fontSize:12 }}>{item.uraian}</td>
+                    <td>
+                      <textarea className="form-control" rows={2} value={item.catatan}
+                        onChange={e=>setForm(f=>{
+                          const items=[...f.hasil_asistensi]; items[idx]={...items[idx],catatan:e.target.value}
+                          return {...f, hasil_asistensi:items}
+                        })} />
+                    </td>
+                    <td>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <textarea className="form-control ai-box" rows={2} value={item.tindak_lanjut}
+                          onChange={e=>setForm(f=>{
+                            const items=[...f.hasil_asistensi]; items[idx]={...items[idx],tindak_lanjut:e.target.value}
+                            return {...f, hasil_asistensi:items}
+                          })} />
+                        <button className="btn btn-ai btn-sm" onClick={()=>genAI(idx)} disabled={aiLoad===idx} title="Generate AI">
+                          {aiLoad===idx ? '⏳' : '✨'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div className="form-group">
-            <label className="form-label">Hasil Pembahasan / Uraian Asistensi</label>
-            <textarea className="form-control" rows={4} value={form.hasil_pembahasan}
-              onChange={e=>setForm({...form,hasil_pembahasan:e.target.value})}
-              placeholder="Uraikan hasil pembahasan asistensi secara lengkap..." />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Catatan</label>
-            <textarea className="form-control" rows={2} value={form.catatan}
-              onChange={e=>setForm({...form,catatan:e.target.value})} />
-          </div>
-          <div className="form-group">
+          <div className="form-group" style={{ marginTop:8 }}>
             <label className="form-label">Kesimpulan</label>
             <select className="form-control" value={form.kesimpulan}
               onChange={e=>setForm({...form,kesimpulan:e.target.value})}>
@@ -491,23 +484,13 @@ const EMPTY_FORM = {
               <option value="perlu_perbaikan">⚠️ Perlu dilakukan perbaikan/penyesuaian sebagaimana hasil asistensi</option>
             </select>
           </div>
-          <div className="form-group">
-            <div className="flex-between mb-1">
-              <label className="form-label" style={{ margin:0 }}>🤖 Tindak Lanjut (AI Otomatis)</label>
-              <button className="btn btn-ai btn-sm" onClick={genAI} disabled={aiLoad}>
-                {aiLoad?'⏳ Memproses...':'✨ Generate AI'}
-              </button>
-            </div>
-            <textarea className="form-control ai-box" rows={5} value={form.tindak_lanjut}
-              onChange={e=>setForm({...form,tindak_lanjut:e.target.value})}
-              placeholder="Klik Generate AI untuk tindak lanjut otomatis..." />
-          </div>
+
           <div className="modal-footer">
-  <button className="btn btn-outline" onClick={()=>{ setModal(false); setEditId(null) }}>Batal</button>
-  <button className="btn btn-primary" onClick={save} disabled={loading}>
-    {loading ? '⏳ Menyimpan...' : (editId ? '💾 Update BA' : '💾 Simpan BA')}
-  </button>
-</div>
+            <button className="btn btn-outline" onClick={()=>{ setModal(false); setEditId(null) }}>Batal</button>
+            <button className="btn btn-primary" onClick={save} disabled={loading}>
+              {loading ? '⏳ Menyimpan...' : (editId ? '💾 Update BA' : '💾 Simpan BA')}
+            </button>
+          </div>
         </Modal>
       )}
     </div>
@@ -525,7 +508,7 @@ export function Rekonsiliasi() {
   const [realOPD, setRealOPD] = useState([])
   const [aiLoad,  setAiLoad]  = useState(false)
   const [loading, setLoading] = useState(false)
-  const [editId,  setEditId]  = useState(null)
+  const [editId,  setEditId]  = useState(null)  // null = tambah baru, terisi = mode edit
   const [kabupaten] = useState(() => localStorage.getItem('simdbh_kabupaten')||'…………………')
 
   const EMPTY_FORM = {
@@ -608,50 +591,55 @@ export function Rekonsiliasi() {
     setAiLoad(false)
   }
 
+  // Buka modal dalam mode EDIT, isi form dari data baris yang dipilih
   function edit(r) {
-  setEditId(r.id)
-  setForm({
-    nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
-    opd:r.opd||'', opd_user_id:r.opd_user_id||'', bidang_id:r.bidang_id||'kesmas',
-    program:r.program||'', kegiatan:r.kegiatan||'', sub_kegiatan:r.sub_kegiatan||'',
-    pagu_usulan:String(r.pagu_usulan||''),
-    peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
-    hasil_asistensi: Array.isArray(r.hasil_asistensi) && r.hasil_asistensi.length>0
-      ? r.hasil_asistensi
-      : KRITERIA_ASISTENSI.map(k=>({...k, catatan:'', tindak_lanjut:''})),
-    kesimpulan:r.kesimpulan||'dapat_ditindaklanjuti',
-    rkp_snapshot:r.rkp_snapshot||[],
-  })
-  if (r.opd_user_id) {
-    supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('created_by', r.opd_user_id).order('created_at')
-      .then(({data})=>setRkpOPD(data||[]))
+    setEditId(r.id)
+    setForm({
+      nomor_ba:r.nomor_ba||'', tanggal:r.tanggal, tempat:r.tempat||'',
+      opd:r.opd||'', opd_user_id:r.opd_user_id||'', triwulan:r.triwulan||'I',
+      program:r.program||'', kegiatan:r.kegiatan||'',
+      pagu:String(r.pagu||''), realisasi_keu:String(r.realisasi_keu||''),
+      realisasi_fisik:String(r.realisasi_fisik||''),
+      peserta_sekretariat:r.peserta_sekretariat||[], peserta_opd:r.peserta_opd||[],
+      permasalahan:r.permasalahan||'', tindak_lanjut:r.tindak_lanjut||'',
+      penanggung_jawab:r.penanggung_jawab||'',
+      kesimpulan:r.kesimpulan||'sesuai',
+      realisasi_snapshot:r.realisasi_snapshot||[],
+    })
+    if (r.opd_user_id) {
+      supabase.from('realisasi_dbhcht').select('*').eq('tahun', tahun).eq('created_by', r.opd_user_id).order('triwulan,created_at')
+        .then(({data})=>setRealOPD(data||[]))
+    }
+    setModal(true)
   }
-  setModal(true)
-}
-  
+
   async function save() {
-  if (!form.opd||!form.program) { notify('OPD dan Program wajib!','warn'); return }
-  setLoading(true)
-  const payload = {
-    tahun, tanggal:form.tanggal, nomor_ba:form.nomor_ba, tempat:form.tempat,
-    opd:form.opd, opd_user_id:form.opd_user_id||null,
-    bidang_id:form.bidang_id, program:form.program,
-    kegiatan:form.kegiatan, sub_kegiatan:form.sub_kegiatan,
-    pagu_usulan:Number(form.pagu_usulan)||0,
-    peserta_sekretariat:form.peserta_sekretariat,
-    peserta_opd:form.peserta_opd,
-    hasil_asistensi:form.hasil_asistensi,
-    kesimpulan:form.kesimpulan,
-    rkp_snapshot:form.rkp_snapshot,
+    if (!form.opd) { notify('OPD wajib!','warn'); return }
+    setLoading(true)
+    const payload = {
+      tahun, triwulan:form.triwulan, tanggal:form.tanggal,
+      nomor_ba:form.nomor_ba, tempat:form.tempat,
+      opd:form.opd, opd_user_id:form.opd_user_id||null,
+      program:form.program, kegiatan:form.kegiatan,
+      pagu:Number(form.pagu)||0,
+      realisasi_keu:Number(form.realisasi_keu)||0,
+      realisasi_fisik:Number(form.realisasi_fisik)||0,
+      peserta_sekretariat:form.peserta_sekretariat,
+      peserta_opd:form.peserta_opd,
+      permasalahan:form.permasalahan,
+      tindak_lanjut:form.tindak_lanjut,
+      penanggung_jawab:form.penanggung_jawab,
+      kesimpulan:form.kesimpulan,
+      realisasi_snapshot:form.realisasi_snapshot,
+    }
+    const { error } = editId
+      ? await supabase.from('rekonsiliasi_dbhcht').update(payload).eq('id', editId)
+      : await supabase.from('rekonsiliasi_dbhcht').insert({ ...payload, created_by:profile?.id })
+    setLoading(false)
+    if (error) { notify('Gagal: '+error.message,'error'); return }
+    notify(editId ? 'Berita Acara Rekonsiliasi diperbarui' : 'Berita Acara Rekonsiliasi tersimpan','success')
+    setModal(false); setEditId(null); load()
   }
-  const { error } = editId
-    ? await supabase.from('asistensi_dbhcht').update(payload).eq('id', editId)
-    : await supabase.from('asistensi_dbhcht').insert({ ...payload, created_by:profile?.id })
-  setLoading(false)
-  if (error) { notify('Gagal: '+error.message,'error'); return }
-  notify(editId ? 'Berita Acara Asistensi diperbarui' : 'Berita Acara Asistensi tersimpan','success')
-  setModal(false); setEditId(null); load()
-}
 
   async function del(id) {
     if (!confirm('Hapus?')) return
@@ -664,7 +652,7 @@ export function Rekonsiliasi() {
       <PageHeader title="🔄 Rekonsiliasi Realisasi DBH CHT">
         {isSekretariat && (
           <button className="btn btn-primary btn-sm"
-            onClick={()=>{ setForm(EMPTY_FORM); setRealOPD([]); setModal(true) }}>
+            onClick={()=>{ setForm(EMPTY_FORM); setEditId(null); setRealOPD([]); setModal(true) }}>
             + Tambah BA
           </button>
         )}
@@ -712,13 +700,12 @@ export function Rekonsiliasi() {
                       {r.kesimpulan==='sesuai'?'✅ Sesuai':'⚠️ Perbaikan'}
                     </span></td>
                     <td>
-                      <td>
-  <div className="action-row">
-    {isSekretariat && <button className="btn btn-outline btn-sm" onClick={()=>edit(r)}>✏️ Edit</button>}
-    <button className="btn btn-primary btn-sm" onClick={()=>setPreview(r)}>👁️ Lihat</button>
-    {isSekretariat && <DelBtn onClick={()=>del(r.id)} />}
-  </div>
-</td>
+                      <div className="action-row">
+                        {isSekretariat && <button className="btn btn-outline btn-sm" onClick={()=>edit(r)}>✏️ Edit</button>}
+                        <button className="btn btn-primary btn-sm" onClick={()=>setPreview(r)}>👁️ Lihat</button>
+                        {isSekretariat && <DelBtn onClick={()=>del(r.id)} />}
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -737,9 +724,10 @@ export function Rekonsiliasi() {
         />
       )}
 
-      {/* Modal form — hanya sekretariat */}
+      {/* Modal form tambah/edit — hanya sekretariat */}
       {modal && isSekretariat && (
-        <Modal title="📝 Berita Acara Rekonsiliasi" onClose={()=>setModal(false)} wide>
+        <Modal title={editId ? '✏️ Edit Berita Acara Rekonsiliasi' : '📝 Berita Acara Rekonsiliasi'}
+          onClose={()=>{ setModal(false); setEditId(null) }} wide>
           <div className="form-row">
             <div className="form-group" style={{ flex:1 }}>
               <label className="form-label">Nomor BA</label>
@@ -879,11 +867,11 @@ export function Rekonsiliasi() {
               placeholder="Klik Generate AI..." />
           </div>
           <div className="modal-footer">
-  <button className="btn btn-outline" onClick={()=>{ setModal(false); setEditId(null) }}>Batal</button>
-  <button className="btn btn-primary" onClick={save} disabled={loading}>
-    {loading ? '⏳ Menyimpan...' : (editId ? '💾 Update BA' : '💾 Simpan BA')}
-  </button>
-</div>
+            <button className="btn btn-outline" onClick={()=>{ setModal(false); setEditId(null) }}>Batal</button>
+            <button className="btn btn-primary" onClick={save} disabled={loading}>
+              {loading ? '⏳...' : (editId ? '💾 Update BA' : '💾 Simpan BA')}
+            </button>
+          </div>
         </Modal>
       )}
     </div>
