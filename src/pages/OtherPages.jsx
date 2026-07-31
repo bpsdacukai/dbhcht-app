@@ -503,11 +503,11 @@ const EMPTY_FORM = {
               placeholder="Klik Generate AI untuk tindak lanjut otomatis..." />
           </div>
           <div className="modal-footer">
-            <button className="btn btn-outline" onClick={()=>setModal(false)}>Batal</button>
-            <button className="btn btn-primary" onClick={save} disabled={loading}>
-              {loading?'⏳ Menyimpan...':'💾 Simpan BA'}
-            </button>
-          </div>
+  <button className="btn btn-outline" onClick={()=>{ setModal(false); setEditId(null) }}>Batal</button>
+  <button className="btn btn-primary" onClick={save} disabled={loading}>
+    {loading ? '⏳ Menyimpan...' : (editId ? '💾 Update BA' : '💾 Simpan BA')}
+  </button>
+</div>
         </Modal>
       )}
     </div>
