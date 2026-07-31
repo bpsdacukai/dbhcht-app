@@ -398,13 +398,53 @@ const EMPTY_FORM = {
           </div>
 
           <hr className="divider" />
-          <PesertaEditor label="👥 Peserta Sekretariat Tim Koordinasi"
-            peserta={form.peserta_sekretariat}
-            onChange={v=>setForm(f=>({...f,peserta_sekretariat:v}))} />
-          <PesertaEditor label="👥 Peserta OPD"
-            peserta={form.peserta_opd}
-            onChange={v=>setForm(f=>({...f,peserta_opd:v}))} />
-          <hr className="divider" />
+<label className="form-label">C. Hasil Asistensi</label>
+<table className="form-control" style={{ padding:0, borderCollapse:'collapse', width:'100%' }}>
+  <thead>
+    <tr>
+      <th style={{ width:24, fontSize:11 }}>No</th>
+      <th style={{ width:'26%', fontSize:11 }}>Uraian</th>
+      <th style={{ fontSize:11 }}>Hasil Pembahasan / Catatan</th>
+      <th style={{ width:'28%', fontSize:11 }}>Tindak Lanjut</th>
+    </tr>
+  </thead>
+  <tbody>
+    {form.hasil_asistensi.map((item, idx) => (
+      <tr key={item.no}>
+        <td style={{ textAlign:'center', fontSize:12 }}>{item.no}</td>
+        <td style={{ fontSize:12 }}>{item.uraian}</td>
+        <td>
+          <textarea className="form-control" rows={2} value={item.catatan}
+            onChange={e=>setForm(f=>{
+              const items=[...f.hasil_asistensi]; items[idx]={...items[idx],catatan:e.target.value}
+              return {...f, hasil_asistensi:items}
+            })} />
+        </td>
+        <td>
+          <div style={{ display:'flex', gap:4 }}>
+            <textarea className="form-control ai-box" rows={2} value={item.tindak_lanjut}
+              onChange={e=>setForm(f=>{
+                const items=[...f.hasil_asistensi]; items[idx]={...items[idx],tindak_lanjut:e.target.value}
+                return {...f, hasil_asistensi:items}
+              })} />
+            <button className="btn btn-ai btn-sm" onClick={()=>genAI(idx)} disabled={aiLoad===idx} title="Generate AI">
+              {aiLoad===idx ? '⏳' : '✨'}
+            </button>
+          </div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+<div className="form-group" style={{ marginTop:8 }}>
+  <label className="form-label">Kesimpulan</label>
+  <select className="form-control" value={form.kesimpulan}
+    onChange={e=>setForm({...form,kesimpulan:e.target.value})}>
+    <option value="dapat_ditindaklanjuti">✅ Dapat ditindaklanjuti pada tahapan penganggaran berikutnya</option>
+    <option value="perlu_perbaikan">⚠️ Perlu dilakukan perbaikan/penyesuaian sebagaimana hasil asistensi</option>
+  </select>
+</div>
 
           <div className="form-group">
             <label className="form-label">Hasil Pembahasan / Uraian Asistensi</label>
