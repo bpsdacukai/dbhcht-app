@@ -711,11 +711,13 @@ export function Rekonsiliasi() {
                       {r.kesimpulan==='sesuai'?'✅ Sesuai':'⚠️ Perbaikan'}
                     </span></td>
                     <td>
-                      <div className="action-row">
-                        <button className="btn btn-primary btn-sm" onClick={()=>setPreview(r)}>👁️ Lihat</button>
-                        {isSekretariat && <DelBtn onClick={()=>del(r.id)} />}
-                      </div>
-                    </td>
+                      <td>
+  <div className="action-row">
+    {isSekretariat && <button className="btn btn-outline btn-sm" onClick={()=>edit(r)}>✏️ Edit</button>}
+    <button className="btn btn-primary btn-sm" onClick={()=>setPreview(r)}>👁️ Lihat</button>
+    {isSekretariat && <DelBtn onClick={()=>del(r.id)} />}
+  </div>
+</td>
                   </tr>
                 )
               })}
