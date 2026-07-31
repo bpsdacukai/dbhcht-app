@@ -261,6 +261,9 @@ const EMPTY_FORM = {
           <button className="btn btn-primary btn-sm" onClick={()=>{ setForm(EMPTY_FORM); setRkpOPD([]); setModal(true) }}>
             + Tambah BA
           </button>
+      <button className="btn btn-primary btn-sm" onClick={()=>{ setForm(EMPTY_FORM); setEditId(null); setRkpOPD([]); setModal(true) }}>
+  + Tambah BA
+</button>
         )}
       </PageHeader>
 
