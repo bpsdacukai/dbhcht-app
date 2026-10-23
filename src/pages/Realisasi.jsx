@@ -245,8 +245,7 @@ export default function Realisasi() {
         {tabs.map(b=>(
           <div key={b.id}
             className={`tab ${bidTab===b.id?'active':''}`}
-            style={{fontSize:'.75rem',padding:'4px 10px',border:'1px solid var(--border)',borderRadius:5,
-              ...(bidTab===b.id&&b.id==='koordinasi'?{color:KOORDINASI.color,borderColor:KOORDINASI.color}:{})}}
+            style={{fontSize:'.75rem',padding:'5px 12px','--tab-c':b.color}}
             onClick={()=>setBidTab(b.id)}
           >{b.icon} {b.short}</div>
         ))}

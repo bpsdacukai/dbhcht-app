@@ -6,6 +6,7 @@ import { BIDANG, KOORDINASI, PROGRAM_BY_BIDANG, SUB_KEGIATAN_KOORDINASI, KODE_RE
 import { Modal, EmptyRow, DelBtn, EditBtn, PageHeader } from '../components/UI.jsx'
 import { getPaguOpd } from '../lib/supabase.js'
 import RKPPerubahan from './RKPPerubahan.jsx'
+import RekapRKP, { RkpViewSwitch } from './RekapRKP.jsx'
 
 const EMPTY = {
   bidang_id:'', program:'', kegiatan:'', sub_kegiatan:'',
@@ -25,6 +26,7 @@ export default function RKP() {
   const [loading, setLoading] = useState(false)
   const [paguOpd, setPaguOpd] = useState(null)
   const [bopWarn, setBopWarn] = useState('')
+  const [view,    setView]    = useState('input') // 'input' | 'rekap' (Rekap RKP lengkap)
 
   // set default tab berdasarkan role
   useEffect(() => {
@@ -41,7 +43,28 @@ export default function RKP() {
 
   // Format RKP Perubahan berbeda dari RKP Murni (ada kolom Semula/Menjadi
   // sesuai PMK 22/2026). Logika & tampilan RKP Murni di bawah ini tidak diubah.
-  if (jenis === 'Perubahan') return <RKPPerubahan />
+  // Rekap lengkap (semua bidang + koordinasi dalam 1 dokumen) — Murni maupun Perubahan.
+  if (view === 'rekap') {
+    return (
+      <div>
+        <div className="flex-between no-print" style={{ flexWrap: 'wrap', gap: '.5rem', marginBottom: '1rem' }}>
+          <div className="page-title" style={{ margin: 0 }}>📚 Rekap RKP Lengkap <span className="chip">TA {tahun} · {jenis}</span></div>
+          <RkpViewSwitch view={view} onChange={setView} />
+        </div>
+        <RekapRKP />
+      </div>
+    )
+  }
+  if (jenis === 'Perubahan') {
+    return (
+      <div>
+        <div className="flex-between no-print" style={{ justifyContent: 'flex-end', marginBottom: '.5rem' }}>
+          <RkpViewSwitch view={view} onChange={setView} />
+        </div>
+        <RKPPerubahan />
+      </div>
+    )
+  }
 
   async function load() {
     let q = supabase.from('rkp_dbhcht').select('*').eq('tahun', tahun).eq('jenis', jenis).order('created_at')
@@ -141,6 +164,7 @@ export default function RKP() {
   return (
     <div>
       <PageHeader title="📄 Penyusunan RKP DBH CHT">
+        <RkpViewSwitch view={view} onChange={setView} />
         <span className="chip">TA {tahun} · {jenis}</span>
         {paguOpd && <span className="chip" style={{color:'var(--gold)'}}>Pagu OPD: {fmtRp((paguOpd.pagu_utama||0)+(paguOpd.bop||0))}</span>}
         <span className="chip">Total RKP: {fmtRp(totalAll)}</span>
@@ -152,7 +176,7 @@ export default function RKP() {
         {tabs.map(b => (
           <div key={b.id}
             className={`tab ${activeTab===b.id?'active':''}`}
-            style={activeTab===b.id&&b.id==='koordinasi'?{color:KOORDINASI.color,borderBottomColor:KOORDINASI.color}:{}}
+            style={{'--tab-c':b.color}}
             onClick={()=>setTab(b.id)}
           >
             {b.icon} {b.short}

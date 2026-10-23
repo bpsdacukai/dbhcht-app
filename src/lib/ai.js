@@ -1,20 +1,13 @@
-// Panggil Claude AI via Anthropic API
-// Catatan: Untuk produksi, API key HARUS disimpan di server (Supabase Edge Function)
-// Untuk demo/dev, bisa langsung dari browser dengan VITE_ANTHROPIC_API_KEY
+// Panggil Claude AI lewat Supabase Edge Function "ai-proxy".
+// API key Anthropic TIDAK pernah ada di browser — hanya tersimpan sebagai secret di server.
+// Fungsi mewajibkan pengguna sudah login (verify_jwt = true), token dikirim otomatis oleh supabase-js.
+import { supabase } from './supabase.js'
 
 export async function callAI(prompt) {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 800,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-    const data = await res.json()
-    return data.content?.[0]?.text || 'Tidak ada respons dari AI.'
+    const { data, error } = await supabase.functions.invoke('ai-proxy', { body: { prompt } })
+    if (error) throw error
+    return data?.content?.[0]?.text || 'Tidak ada respons dari AI.'
   } catch {
     return 'Gagal terhubung ke layanan AI.'
   }

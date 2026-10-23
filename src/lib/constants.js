@@ -1,12 +1,12 @@
 // ── BIDANG DBH CHT ────────────────────────────────────────────
 export const BIDANG = [
-  { id:'kesmas',    label:'Bidang Kesejahteraan Masyarakat', short:'Kesej. Masyarakat', icon:'🌿', color:'#2d6a4f', pct:50 },
-  { id:'kesehatan', label:'Bidang Kesehatan',                short:'Kesehatan',          icon:'🏥', color:'#1e6091', pct:40 },
-  { id:'hukum',     label:'Bidang Penegakan Hukum',          short:'Penegakan Hukum',    icon:'⚖️', color:'#7b2d00', pct:10 },
+  { id:'kesmas',    label:'Bidang Kesejahteraan Masyarakat', short:'Kesej. Masyarakat', icon:'🌿', color:'#059669', pct:50 },
+  { id:'kesehatan', label:'Bidang Kesehatan',                short:'Kesehatan',          icon:'🏥', color:'#2563eb', pct:40 },
+  { id:'hukum',     label:'Bidang Penegakan Hukum',          short:'Penegakan Hukum',    icon:'⚖️', color:'#7c3aed', pct:10 },
 ]
 export const KOORDINASI = {
   id:'koordinasi', label:'Kegiatan Koordinasi Pengelolaan DBH CHT',
-  short:'Koordinasi DBH CHT', icon:'📋', color:'#5f4b1a', isKoordinasi:true,
+  short:'Koordinasi DBH CHT', icon:'📋', color:'#d97706', isKoordinasi:true,
 }
 export const SEMUA_BIDANG = [...BIDANG, KOORDINASI]
 export const TAHUN_LIST = [2025, 2026, 2027, 2028, 2029, 2030]

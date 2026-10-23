@@ -224,7 +224,7 @@ export default function RKPPerubahan() {
         {tabs.map(b => (
           <div key={b.id}
             className={`tab ${activeTab === b.id ? 'active' : ''}`}
-            style={activeTab === b.id && b.id === 'koordinasi' ? { color: KOORDINASI.color, borderBottomColor: KOORDINASI.color } : {}}
+            style={{ '--tab-c': b.color }}
             onClick={() => setTab(b.id)}
           >
             {b.icon} {b.short}

@@ -8,13 +8,13 @@ import { Modal, ProgressBar, StatBox } from '../components/UI.jsx'
 import { analysisDashboard } from '../lib/ai.js'
 
 // ── helpers ────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
-const KOTA = 'Kota Batu'
+export const fmt = (n) => new Intl.NumberFormat('id-ID').format(Math.round(n || 0))
+export const KOTA = 'Kota Batu'
 const KODE_WILAYAH = '35.79.121'
 // Opsi "Jabatan yang Diwakili" saat tanda tangan a.n. (atas nama) dicentang.
 // Contoh tampilan: "a.n. WALI KOTA BATU" lalu di bawahnya jabatan penandatangan (mis. "Sekretaris Daerah").
 const NAMA_SINGKAT = KOTA.replace(/^Kota\s+/i, '').toUpperCase() // "BATU"
-const JABATAN_DIWAKILI_OPTIONS = [
+export const JABATAN_DIWAKILI_OPTIONS = [
   `WALI KOTA ${NAMA_SINGKAT}`,
   `SEKRETARIS DAERAH ${KOTA.toUpperCase()}`,
 ]
@@ -42,7 +42,7 @@ function fmtHari(tgl) {
   if (!tgl) return '__________'
   return new Date(tgl).toLocaleDateString('id-ID', { weekday: 'long' })
 }
-function fmtTgl(tgl) {
+export function fmtTgl(tgl) {
   if (!tgl) return '__________ bulan __________ tahun __________'
   return new Date(tgl).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
 }
@@ -51,7 +51,7 @@ function getYear(tgl) {
 }
 
 // ── shared print styles ────────────────────────────────────────
-const S = {
+export const S = {
   doc: {
     fontFamily: 'Arial, sans-serif', fontSize: '11px',
     lineHeight: 1.5, color: '#000', background: '#fff',
@@ -897,7 +897,7 @@ export function CetakRKPPerubahan({ rows = [], tahun, kabupaten = KOTA, paguAlok
 // ── Tanda tangan fleksibel (Koordinator + Pejabat Penandatangan) ──
 // Dipakai oleh dokumen yang menyediakan modal "Download PDF" untuk mengisi
 // data penandatangan (lihat komponen ModalTtdPdf di halaman utama Laporan).
-function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
+export function TandaTanganFleksibel({ ttd, kabupaten = KOTA }) {
   const t = ttd || {}
   const tempat  = t.tempat  || kabupaten
   const tanggal = t.tanggal ? fmtTgl(t.tanggal) : '__________ bulan __________ tahun __________'
@@ -1097,7 +1097,7 @@ function ensurePrintStyle() {
 // Set orientasi kertas (portrait/landscape) sebelum window.print() dipanggil.
 // Menyuntik/mengganti isi <style id="sdb-page-orient"> — ukuran A4 & margin
 // 1,25cm tetap sama, cuma orientasinya yang berubah.
-function setPageOrientation(orientasi = 'portrait') {
+export function setPageOrientation(orientasi = 'portrait') {
   let el = document.getElementById('sdb-page-orient')
   if (!el) {
     el = document.createElement('style')
@@ -1109,7 +1109,7 @@ function setPageOrientation(orientasi = 'portrait') {
 
 // Kontrol Portrait/Landscape mirip pengaturan printer, dipasang di sebelah
 // tiap tombol Cetak.
-function OrientToggle({ value, onChange }) {
+export function OrientToggle({ value, onChange }) {
   const opt = (v, label, icon) => (
     <button type="button" className="no-print"
       onClick={() => onChange(v)}
@@ -1181,7 +1181,7 @@ function PrintPortal({ children, onClose, title }) {
           </button>
         </div>
         <div style={{ flex: 1, overflow: 'auto', background: '#c8c8c8', padding: '1.5rem' }}>
-          <div style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
+          <div className="doc-paper" style={{ background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,.35)', display: 'inline-block', minWidth: 500, maxWidth: 820 }}>
             {children}
           </div>
         </div>
